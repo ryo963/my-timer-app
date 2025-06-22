@@ -1,0 +1,16 @@
+{
+  "name": "タイムトラッカー",
+  "short_name": "タイムトラッカー",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#007bff",
+  "description": "日々の活動時間を記録・可視化するアプリです。",
+  "icons": [
+    {
+      "src": "images/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

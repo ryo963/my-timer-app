@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タイムトラッカー</title>
+    <meta name="theme-color" content="#007bff"/>
+    <link rel="manifest" href="manifest.json">
+
+    <script src='./lib/index.global.min.js'></script>
+
+    <style>
+        /* アプリのカスタムCSSのみをここに記述します */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px 0;
+        }
+        #app-container {
+            background-color: white;
+            padding: 20px 30px 30px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px;
+        }
+        #view-switcher { text-align: center; margin-bottom: 20px; }
+        .view-btn { padding: 8px 16px; border: 1px solid #007bff; background-color: white; color: #007bff; cursor: pointer; border-radius: 5px; transition: background-color 0.2s, color 0.2s; }
+        .view-btn.active { background-color: #007bff; color: white; }
+        .view-btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+        .view-btn:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; }
+        h1 { text-align: center; color: #007bff; margin-top: 0; }
+        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; }
+        .input-group p { margin-bottom: 15px; }
+        input[type="text"] { width: calc(70% - 22px); padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        button { padding: 10px 20px; border: none; border-radius: 5px; color: white; font-size: 16px; cursor: pointer; margin-left: 10px; vertical-align: middle; }
+        #startButton { background-color: #28a745; }
+        #startButton:hover { background-color: #218838; }
+        #stopButton { background-color: #dc3545; }
+        #stopButton:hover { background-color: #c82333; }
+        #timerDisplay { font-size: 24px; font-weight: bold; color: #333; }
+        #recordList { list-style-type: none; padding: 0; }
+        #recordList li { background-color: #f8f9fa; padding: 15px; border-bottom: 1px solid #ddd; margin-top: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .record-text { flex-grow: 1; }
+        .delete-button { background-color: #6c757d; padding: 5px 10px; font-size: 12px; border-radius: 4px; margin-left: 20px; }
+        .delete-button:hover { background-color: #5a6268; }
+        #calendar-view { margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <h1>タイムトラッカー</h1>
+        <div id="view-switcher">
+            <button id="showListBtn" class="view-btn active">リスト表示</button>
+            <button id="showCalendarBtn" class="view-btn">カレンダー表示</button>
+        </div>
+        <div class="input-group">
+            <h2>計測エリア</h2>
+            <p>実施内容： <input type="text" id="taskInput"></p>
+            <button id="startButton">スタート</button>
+            <button id="stopButton">ストップ</button>
+            <p>経過時間： <span id="timerDisplay">00:00:00</span></p>
+        </div>
+        <div id="list-view">
+            <h2>記録エリア</h2>
+            <ul id="recordList"></ul>
+        </div>
+        <div id="calendar-view" style="display: none;">
+             <h2>カレンダー表示</h2>
+            <div id="calendar"></div>
+        </div>
+    </div>
+    <script>
+        // CSSをインターネットから動的に読み込む
+        const fcCssLink = document.createElement('link');
+        fcCssLink.rel = 'stylesheet';
+        fcCssLink.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/main.min.css';
+        document.head.appendChild(fcCssLink);
+
+        // PWAのためのサービスワーカーを登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => { console.log('ServiceWorker registration successful'); })
+                    .catch(err => { console.log('ServiceWorker registration failed: ', err); });
+            });
+        }
+
+        // HTMLの読み込みが完了してからアプリのメインの処理を実行
+        document.addEventListener('DOMContentLoaded', function() {
+            const taskInput = document.getElementById('taskInput');
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const recordList = document.getElementById('recordList');
+            const showListBtn = document.getElementById('showListBtn');
+            const showCalendarBtn = document.getElementById('showCalendarBtn');
+            const listView = document.getElementById('list-view');
+            const calendarView = document.getElementById('calendar-view');
+            const calendarEl = document.getElementById('calendar');
+            let timerId = null;
+            let startTime = 0;
+            let records = [];
+            let calendar = null;
+
+            const renderListView = () => {
+                recordList.innerHTML = ''; 
+                const sortedRecords = [...records].sort((a,b) => b.createdAt - a.createdAt);
+                sortedRecords.forEach(record => {
+                    const originalIndex = records.indexOf(record);
+                    const li = document.createElement('li');
+                    const textSpan = document.createElement('span');
+                    textSpan.className = 'record-text';
+                    const recordDate = new Date(record.createdAt);
+                    const formattedDate = `${recordDate.getFullYear()}/${String(recordDate.getMonth() + 1).padStart(2, '0')}/${String(recordDate.getDate()).padStart(2, '0')} ${String(recordDate.getHours()).padStart(2, '0')}:${String(recordDate.getMinutes()).padStart(2, '0')}`;
+                    textSpan.textContent = `[${formattedDate}] ${record.task} - ${formatTime(record.duration)}`;
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = '削除';
+                    deleteButton.className = 'delete-button';
+                    deleteButton.addEventListener('click', () => deleteRecord(originalIndex));
+                    li.appendChild(textSpan);
+                    li.appendChild(deleteButton);
+                    recordList.appendChild(li);
+                });
+            };
+
+            const convertRecordsToEvents = () => {
+                return records.map(record => ({
+                    title: record.task,
+                    start: new Date(record.createdAt - record.duration),
+                    end: new Date(record.createdAt)
+                }));
+            };
+
+            const initializeCalendar = () => {
+                calendar = new FullCalendar.Calendar(calendarEl, {
+                    locale: 'ja',
+                    firstDay: 1,
+                    initialView: 'timeGridWeek',
+                    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+                    allDaySlot: false,
+                    events: [],
+                    height: 'auto'
+                });
+                calendar.render();
+            };
+            
+            const updateCalendarEvents = () => {
+                if (calendar) {
+                    calendar.getEventSources().forEach(source => source.remove());
+                    calendar.addEventSource(convertRecordsToEvents());
+                }
+            };
+
+            const saveRecords = () => {
+                try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); } catch (e) { console.error("記録の保存に失敗しました:", e); }
+            };
+
+            const loadRecords = () => {
+                try {
+                    const savedRecords = localStorage.getItem('myTimerRecords');
+                    if (savedRecords) { records = JSON.parse(savedRecords); }
+                } catch (e) {
+                    console.error("記録の読み込みに失敗しました:", e);
+                    records = [];
+                }
+                renderListView();
+                if (calendar) { updateCalendarEvents(); }
+            };
+
+            const deleteRecord = (indexToDelete) => {
+                records.splice(indexToDelete, 1);
+                saveRecords();
+                renderListView();
+                updateCalendarEvents();
+            };
+
+            const formatTime = (milliseconds) => {
+                if (milliseconds < 0) milliseconds = 0;
+                const totalSeconds = Math.floor(milliseconds / 1000);
+                const hours = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+                return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            };
+
+            startButton.addEventListener('click', () => {
+                if (timerId !== null) return;
+                if (taskInput.value.trim() === '') { alert('実施内容が入力されていません！'); return; }
+                startTime = Date.now();
+                timerId = setInterval(() => { timerDisplay.textContent = formatTime(Date.now() - startTime); }, 1000);
+            });
+
+            stopButton.addEventListener('click', () => {
+                if (timerId === null) return;
+                clearInterval(timerId);
+                const elapsedTime = Date.now() - startTime;
+                records.push({ task: taskInput.value, duration: elapsedTime, createdAt: Date.now() });
+                saveRecords();
+                renderListView();
+                updateCalendarEvents();
+                timerId = null;
+                taskInput.value = '';
+                timerDisplay.textContent = '00:00:00';
+            });
+
+            showListBtn.addEventListener('click', () => {
+                listView.style.display = 'block';
+                calendarView.style.display = 'none';
+                showListBtn.classList.add('active');
+                showCalendarBtn.classList.remove('active');
+            });
+
+            showCalendarBtn.addEventListener('click', () => {
+                listView.style.display = 'none';
+                calendarView.style.display = 'block';
+                showListBtn.classList.remove('active');
+                showCalendarBtn.classList.add('active');
+                if (calendar) { calendar.updateSize(); }
+            });
+
+            initializeCalendar();
+            loadRecords();
+        });
+    </script>
+</body>
+</html>
