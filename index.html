@@ -10,7 +10,7 @@
     <script src='./lib/index.global.min.js'></script>
 
     <style>
-        /* アプリのカスタムCSSのみをここに記述します */
+        /* アプリのカスタムCSS */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: #f0f2f5;
@@ -50,7 +50,17 @@
         .record-text { flex-grow: 1; }
         .delete-button { background-color: #6c757d; padding: 5px 10px; font-size: 12px; border-radius: 4px; margin-left: 20px; }
         .delete-button:hover { background-color: #5a6268; }
-        #calendar-view { margin-top: 30px; }
+
+        /* ★★★ ここからが横スクロール対応のCSS ★★★ */
+        #calendar-wrapper {
+            overflow-x: auto; /* 横方向のスクロールを有効にする */
+            -webkit-overflow-scrolling: touch; /* スマホで滑らかなスクロールを実現 */
+            margin-top: 30px;
+        }
+        #calendar {
+            min-width: 700px; /* カレンダーの最低幅を指定して、意図的に横スクロールを発生させる */
+        }
+        /* ★★★ ここまで ★★★ */
     </style>
 </head>
 <body>
@@ -71,11 +81,13 @@
             <h2>記録エリア</h2>
             <ul id="recordList"></ul>
         </div>
-        <div id="calendar-view" style="display: none;">
+
+        <div id="calendar-wrapper" style="display: none;">
              <h2>カレンダー表示</h2>
             <div id="calendar"></div>
         </div>
     </div>
+
     <script>
         // CSSをインターネットから動的に読み込む
         const fcCssLink = document.createElement('link');
@@ -92,8 +104,8 @@
             });
         }
 
-        // HTMLの読み込みが完了してからアプリのメインの処理を実行
         document.addEventListener('DOMContentLoaded', function() {
+            // ★変更点： calendarView を calendarWrapper に変更
             const taskInput = document.getElementById('taskInput');
             const startButton = document.getElementById('startButton');
             const stopButton = document.getElementById('stopButton');
@@ -102,7 +114,7 @@
             const showListBtn = document.getElementById('showListBtn');
             const showCalendarBtn = document.getElementById('showCalendarBtn');
             const listView = document.getElementById('list-view');
-            const calendarView = document.getElementById('calendar-view');
+            const calendarWrapper = document.getElementById('calendar-wrapper'); // ← 変更
             const calendarEl = document.getElementById('calendar');
             let timerId = null;
             let startTime = 0;
@@ -209,17 +221,18 @@
                 taskInput.value = '';
                 timerDisplay.textContent = '00:00:00';
             });
-
+            
+            // ★表示切替の対象を calendarWrapper に変更
             showListBtn.addEventListener('click', () => {
                 listView.style.display = 'block';
-                calendarView.style.display = 'none';
+                calendarWrapper.style.display = 'none';
                 showListBtn.classList.add('active');
                 showCalendarBtn.classList.remove('active');
             });
 
             showCalendarBtn.addEventListener('click', () => {
                 listView.style.display = 'none';
-                calendarView.style.display = 'block';
+                calendarWrapper.style.display = 'block';
                 showListBtn.classList.remove('active');
                 showCalendarBtn.classList.add('active');
                 if (calendar) { calendar.updateSize(); }
