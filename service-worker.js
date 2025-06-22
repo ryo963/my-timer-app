@@ -1,13 +1,13 @@
-const CACHE_NAME = 'timetracker-cache-v1';
+const CACHE_NAME = 'timetracker-cache-v2'; // バージョンをv2に更新
 const urlsToCache = [
   '/',
   'index.html',
-  'manifest.json',
+  'manifest.json', // manifest.jsonをキャッシュ対象に追加
   'lib/index.global.min.js',
   'images/icon-512x512.png'
 ];
 
-// インストール時に、指定されたファイルをキャッシュする
+// 古いキャッシュを削除し、新しいキャッシュを作成する
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -18,12 +18,25 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// ファイルのリクエストがあった際に、キャッシュから返す
+self.addEventListener('activate', (event) => {
+    const cacheWhitelist = [CACHE_NAME];
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheWhitelist.indexOf(cacheName) === -1) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+});
+
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // キャッシュにあればそれを返す。なければ通常通りネットワークから取得
         return response || fetch(event.request);
       })
   );
