@@ -1,8 +1,8 @@
-const CACHE_NAME = 'timetracker-cache-v2'; // バージョンをv2に更新
+const CACHE_NAME = 'timetracker-cache-v4'; // バージョンをv4に更新
 const urlsToCache = [
   '/',
   'index.html',
-  'manifest.json', // manifest.jsonをキャッシュ対象に追加
+  'manifest.json',
   'lib/index.global.min.js',
   'images/icon-512x512.png'
 ];
