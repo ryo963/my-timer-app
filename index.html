@@ -29,7 +29,7 @@
         #timerDisplay { font-size: 24px; font-weight: bold; color: #333; }
         #recordList { list-style-type: none; padding: 0; }
         #recordList li { background-color: #f8f9fa; padding: 15px; border-bottom: 1px solid #ddd; margin-top: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .record-text { flex-grow: 1; font-weight: 500;}
+        .record-text { flex-grow: 1; font-weight: 500; }
         .delete-button { background-color: #6c757d; padding: 5px 10px; font-size: 12px; border-radius: 4px; margin-left: 20px; }
         .delete-button:hover { background-color: #5a6268; }
         #calendar-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 30px; }
@@ -44,6 +44,38 @@
         .palette-delete-btn:hover { opacity: 1; }
         #addEventTypeBtn { background-color: #007bff; }
         #addEventTypeBtn:hover { background-color: #0069d9; }
+
+        /* ★★★ ここからがモーダルダイアログのCSS ★★★ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        #modal-event-list button {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+        }
+        #modal-close-btn {
+            background-color: #6c757d;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -80,18 +112,26 @@
             <div id="calendar"></div>
         </div>
     </div>
+
+    <div id="event-choice-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3>どの予定を作成しますか？</h3>
+            <div id="modal-event-list">
+                </div>
+            <button id="modal-close-btn">キャンセル</button>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const fcCssLink = document.createElement('link');
-            fcCssLink.rel = 'stylesheet';
-            fcCssLink.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/main.min.css';
-            document.head.appendChild(fcCssLink);
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/service-worker.js').then(reg => console.log('SW registered.')).catch(err => console.log('SW registration failed: ', err));
-                });
-            }
+            // (PWA登録処理は省略)
+            if ('serviceWorker' in navigator) { /* ... */ }
 
+            // ----- HTML要素の取得 -----
+            const eventChoiceModal = document.getElementById('event-choice-modal');
+            const modalEventList = document.getElementById('modal-event-list');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            // (その他の要素取得は省略)
             const eventTypeInput = document.getElementById('eventTypeInput');
             const eventTypeColor = document.getElementById('eventTypeColor');
             const addEventTypeBtn = document.getElementById('addEventTypeBtn');
@@ -109,8 +149,112 @@
             
             let timerId = null, startTime = 0, records = [], eventTypes = [], calendar = null;
 
+            // ----- 機能定義 -----
+
+            const initializeCalendar = () => {
+                calendar = new FullCalendar.Calendar(calendarEl, {
+                    locale: 'ja', firstDay: 1, initialView: 'timeGridWeek',
+                    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+                    allDaySlot: false, events: [], height: 'auto', editable: true, droppable: true,
+                    
+                    // ★★★ ここからが「タップ＆選択」機能の核心 ★★★
+                    dateClick: function(info) {
+                        // 1. モーダルの中身を一度空にする
+                        modalEventList.innerHTML = '';
+                        
+                        // 2. 予定ブロックの種類からボタンを生成する
+                        eventTypes.forEach(eventType => {
+                            const button = document.createElement('button');
+                            button.textContent = eventType.title;
+                            button.style.backgroundColor = eventType.color;
+                            button.style.borderColor = eventType.color;
+
+                            // 3. ボタンがクリックされた時の処理を設定
+                            button.addEventListener('click', () => {
+                                const startTime = info.date;
+                                const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+                                const newRecord = {
+                                    task: eventType.title,
+                                    duration: endTime - startTime,
+                                    createdAt: endTime.getTime(),
+                                    color: eventType.color,
+                                    source: 'palette'
+                                };
+                                records.push(newRecord);
+                                saveRecords();
+                                renderListView();
+                                updateCalendarEvents();
+                                closeModal(); // 予定作成後にモーダルを閉じる
+                            });
+
+                            modalEventList.appendChild(button);
+                        });
+
+                        // 4. モーダルを表示する
+                        eventChoiceModal.style.display = 'flex';
+                    },
+
+                    // (eventReceive, eventDrop, eventResizeは変更なし)
+                    eventReceive: (info) => { /* ... */ },
+                    eventDrop: (info) => { /* ... */ },
+                    eventResize: (info) => { /* ... */ }
+                });
+                calendar.render();
+            };
+
+            const closeModal = () => {
+                eventChoiceModal.style.display = 'none';
+            };
+            
+            // ----- イベントリスナー設定 -----
+            modalCloseBtn.addEventListener('click', closeModal);
+            eventChoiceModal.addEventListener('click', (e) => {
+                if (e.target === eventChoiceModal) { // 黒い背景部分をクリックしたら閉じる
+                    closeModal();
+                }
+            });
+            
+            // (その他のイベントリスナーや関数は、長くなるためここでは省略しますが、
+            // 以下の完全なscriptタグの中身で置き換えてください)
+        });
+        
+        // ★★★ ↓↓ この完全な<script>タグで、あなたのindex.htmlの<script>を置き換えてください ↓↓ ★★★
+    </script>
+    <script>
+        // CSSをインターネットから動的に読み込む
+        const fcCssLink = document.createElement('link');
+        fcCssLink.rel = 'stylesheet';
+        fcCssLink.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/main.min.css';
+        document.head.appendChild(fcCssLink);
+        // PWAのためのサービスワーカーを登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js').then(reg => console.log('SW registered.')).catch(err => console.log('SW registration failed: ', err));
+            });
+        }
+        // HTMLの読み込みが完了してからアプリのメインの処理を実行
+        document.addEventListener('DOMContentLoaded', function() {
+            const eventTypeInput = document.getElementById('eventTypeInput');
+            const eventTypeColor = document.getElementById('eventTypeColor');
+            const addEventTypeBtn = document.getElementById('addEventTypeBtn');
+            const externalEventsContainer = document.getElementById('external-events');
+            const taskInput = document.getElementById('taskInput');
+            const startButton = document.getElementById('startButton');
+            const stopButton = document.getElementById('stopButton');
+            const timerDisplay = document.getElementById('timerDisplay');
+            const recordList = document.getElementById('recordList');
+            const showListBtn = document.getElementById('showListBtn');
+            const showCalendarBtn = document.getElementById('showCalendarBtn');
+            const listView = document.getElementById('list-view');
+            const calendarWrapper = document.getElementById('calendar-wrapper');
+            const calendarEl = document.getElementById('calendar');
+            const eventChoiceModal = document.getElementById('event-choice-modal');
+            const modalEventList = document.getElementById('modal-event-list');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            let timerId = null,startTime = 0,records = [],eventTypes = [],calendar = null;
+            const closeModal = () => { eventChoiceModal.style.display = 'none'; };
             const renderEventTypes = () => {
-                externalEventsContainer.innerHTML = '<p>↓のブロックをカレンダーにドラッグ＆ドロップ</p>';
+                externalEventsContainer.innerHTML = '<p>↓のブロックをカレンダーにドラッグ＆ドロップ（またはタップで作成）</p>';
                 eventTypes.forEach((eventType, index) => {
                     const wrapperEl = document.createElement('div');
                     wrapperEl.className = 'palette-event-wrapper';
@@ -127,25 +271,18 @@
                     wrapperEl.appendChild(deleteBtn);
                     externalEventsContainer.appendChild(wrapperEl);
                 });
+                new FullCalendar.Draggable(externalEventsContainer, { itemSelector: '.palette-event-wrapper' });
             };
-
             const saveEventTypes = () => { localStorage.setItem('myEventTypes', JSON.stringify(eventTypes)); };
             const loadEventTypes = () => {
                 const savedTypes = localStorage.getItem('myEventTypes');
                 if (savedTypes) { eventTypes = JSON.parse(savedTypes); } else { eventTypes = [{title: '課題', color: '#dc3545'}, {title: 'バイト', color: '#28a745'}]; }
                 renderEventTypes();
             };
-            const deleteEventType = (indexToDelete) => {
-                if (confirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`)) {
-                    eventTypes.splice(indexToDelete, 1);
-                    saveEventTypes();
-                    renderEventTypes();
-                }
-            };
-
+            const deleteEventType = (indexToDelete) => { if (confirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`)) { eventTypes.splice(indexToDelete, 1); saveEventTypes(); renderEventTypes(); } };
             const renderListView = () => {
-                recordList.innerHTML = ''; 
-                const sortedRecords = [...records].sort((a,b) => b.createdAt - a.createdAt);
+                recordList.innerHTML = '';
+                const sortedRecords = [...records].sort((a, b) => b.createdAt - a.createdAt);
                 sortedRecords.forEach(record => {
                     const originalIndex = records.indexOf(record);
                     const li = document.createElement('li');
@@ -157,12 +294,7 @@
                     const startTimeStr = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
                     const endTimeStr = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
                     textSpan.textContent = `[${dateStr} ${startTimeStr}～${endTimeStr}] ${record.task} - ${formatTime(record.duration)}`;
-                    if (record.source === 'palette') {
-                        textSpan.style.color = record.color;
-                        textSpan.style.fontWeight = 'bold';
-                    } else {
-                        textSpan.style.color = '#333';
-                    }
+                    if (record.source === 'palette') { textSpan.style.color = record.color; textSpan.style.fontWeight = 'bold'; } else { textSpan.style.color = '#333'; }
                     const deleteButton = document.createElement('button');
                     deleteButton.textContent = '削除';
                     deleteButton.className = 'delete-button';
@@ -172,16 +304,33 @@
                     recordList.appendChild(li);
                 });
             };
-
-            const convertRecordsToEvents = () => {
-                return records.map(record => ({ title: record.task, start: new Date(record.createdAt - record.duration), end: new Date(record.createdAt), id: record.createdAt, backgroundColor: record.color, borderColor: record.color }));
-            };
-
+            const convertRecordsToEvents = () => { return records.map(record => ({ title: record.task, start: new Date(record.createdAt - record.duration), end: new Date(record.createdAt), id: record.createdAt, backgroundColor: record.color, borderColor: record.color })); };
             const initializeCalendar = () => {
                 calendar = new FullCalendar.Calendar(calendarEl, {
                     locale: 'ja', firstDay: 1, initialView: 'timeGridWeek',
                     headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
                     allDaySlot: false, events: [], height: 'auto', editable: true, droppable: true,
+                    dateClick: function(info) {
+                        modalEventList.innerHTML = '';
+                        eventTypes.forEach(eventType => {
+                            const button = document.createElement('button');
+                            button.textContent = eventType.title;
+                            button.style.backgroundColor = eventType.color;
+                            button.style.borderColor = eventType.color;
+                            button.addEventListener('click', () => {
+                                const startTime = info.date;
+                                const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+                                const newRecord = { task: eventType.title, duration: endTime - startTime, createdAt: endTime.getTime(), color: eventType.color, source: 'palette' };
+                                records.push(newRecord);
+                                saveRecords();
+                                renderListView();
+                                updateCalendarEvents();
+                                closeModal();
+                            });
+                            modalEventList.appendChild(button);
+                        });
+                        eventChoiceModal.style.display = 'flex';
+                    },
                     eventReceive: (info) => {
                         const newRecord = { task: info.event.title, duration: info.event.end - info.event.start, createdAt: info.event.end.getTime(), color: info.event.backgroundColor, source: 'palette' };
                         records.push(newRecord);
@@ -214,7 +363,6 @@
                 });
                 calendar.render();
             };
-            
             const updateCalendarEvents = () => { if (calendar) { const events = convertRecordsToEvents(); calendar.getEventSources().forEach(source => source.remove()); calendar.addEventSource(events); } };
             const saveRecords = () => { try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); } catch (e) { console.error("記録の保存に失敗しました:", e); } };
             const loadRecords = () => {
@@ -234,7 +382,6 @@
                 const seconds = totalSeconds % 60;
                 return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             };
-            
             addEventTypeBtn.addEventListener('click', () => {
                 const newTitle = eventTypeInput.value.trim();
                 const newColor = eventTypeColor.value;
@@ -258,17 +405,14 @@
                 taskInput.value = '';
                 timerDisplay.textContent = '00:00:00';
             });
-            
+            modalCloseBtn.addEventListener('click', closeModal);
+            eventChoiceModal.addEventListener('click', (e) => { if (e.target === eventChoiceModal) { closeModal(); } });
+            startButton.addEventListener('click', () => { if (timerId !== null) return; if (taskInput.value.trim() === '') { alert('実施内容が入力されていません！'); return; } startTime = Date.now(); timerId = setInterval(() => { timerDisplay.textContent = formatTime(Date.now() - startTime); }, 1000); });
             showListBtn.addEventListener('click', () => { listView.style.display = 'block'; calendarWrapper.style.display = 'none'; showListBtn.classList.add('active'); showCalendarBtn.classList.remove('active'); });
             showCalendarBtn.addEventListener('click', () => { listView.style.display = 'none'; calendarWrapper.style.display = 'block'; showListBtn.classList.remove('active'); showCalendarBtn.classList.add('active'); if (calendar) { calendar.updateSize(); } });
-            startButton.addEventListener('click', () => { if (timerId !== null) return; if (taskInput.value.trim() === '') { alert('実施内容が入力されていません！'); return; } startTime = Date.now(); timerId = setInterval(() => { timerDisplay.textContent = formatTime(Date.now() - startTime); }, 1000); });
-            
-            // ★★★ バグ修正：Draggableの初期化を一度だけに限定 ★★★
-            loadEventTypes();
             initializeCalendar();
             loadRecords();
-            // ページが読み込まれた後、一度だけDraggableを有効化する
-            new FullCalendar.Draggable(externalEventsContainer, { itemSelector: '.palette-event-wrapper' });
+            loadEventTypes();
         });
     </script>
 </body>
