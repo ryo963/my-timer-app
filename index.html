@@ -10,26 +10,8 @@
     <script src='./lib/index.global.min.js'></script>
 
     <style>
-        /* アプリのカスタムCSS */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px 0;
-        }
-        #app-container {
-            background-color: white;
-            padding: 20px 30px 30px 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            width: 90%;
-            max-width: 800px;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 20px 0; }
+        #app-container { background-color: white; padding: 20px 30px 30px 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); width: 90%; max-width: 800px; }
         #view-switcher { text-align: center; margin-bottom: 20px; }
         .view-btn { padding: 8px 16px; border: 1px solid #007bff; background-color: white; color: #007bff; cursor: pointer; border-radius: 5px; transition: background-color 0.2s, color 0.2s; }
         .view-btn.active { background-color: #007bff; color: white; }
@@ -38,7 +20,7 @@
         h1 { text-align: center; color: #007bff; margin-top: 0; }
         h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; }
         .input-group p { margin-bottom: 15px; }
-        input[type="text"] { width: calc(70% - 22px); padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        input[type="text"] { width: calc(60% - 22px); padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; vertical-align: middle; }
         button { padding: 10px 20px; border: none; border-radius: 5px; color: white; font-size: 16px; cursor: pointer; margin-left: 10px; vertical-align: middle; }
         #startButton { background-color: #28a745; }
         #startButton:hover { background-color: #218838; }
@@ -47,20 +29,21 @@
         #timerDisplay { font-size: 24px; font-weight: bold; color: #333; }
         #recordList { list-style-type: none; padding: 0; }
         #recordList li { background-color: #f8f9fa; padding: 15px; border-bottom: 1px solid #ddd; margin-top: 10px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .record-text { flex-grow: 1; }
+        .record-text { flex-grow: 1; font-weight: 500;}
         .delete-button { background-color: #6c757d; padding: 5px 10px; font-size: 12px; border-radius: 4px; margin-left: 20px; }
         .delete-button:hover { background-color: #5a6268; }
-
-        /* ★★★ ここからが横スクロール対応のCSS ★★★ */
-        #calendar-wrapper {
-            overflow-x: auto; /* 横方向のスクロールを有効にする */
-            -webkit-overflow-scrolling: touch; /* スマホで滑らかなスクロールを実現 */
-            margin-top: 30px;
-        }
-        #calendar {
-            min-width: 700px; /* カレンダーの最低幅を指定して、意図的に横スクロールを発生させる */
-        }
-        /* ★★★ ここまで ★★★ */
+        #calendar-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 30px; }
+        #calendar { min-width: 700px; }
+        #event-palette-container { background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #eee; }
+        #event-palette-input { display: flex; margin-bottom: 15px; align-items: center; }
+        #event-palette-input input[type="text"] { flex-grow: 1; }
+        #event-palette-input input[type="color"] { width: 40px; height: 40px; padding: 5px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; margin-left: 10px; }
+        #external-events p { margin: 0 0 10px; font-size: 14px; color: #666; text-align: center; }
+        .palette-event-wrapper { display: inline-flex; align-items: center; color: white; padding: 8px; padding-right: 4px; margin: 5px; border-radius: 4px; cursor: grab; }
+        .palette-delete-btn { background: none; border: none; color: white; font-size: 20px; line-height: 1; padding: 0 5px; margin-left: 5px; opacity: 0.6; cursor: pointer; }
+        .palette-delete-btn:hover { opacity: 1; }
+        #addEventTypeBtn { background-color: #007bff; }
+        #addEventTypeBtn:hover { background-color: #0069d9; }
     </style>
 </head>
 <body>
@@ -77,35 +60,42 @@
             <button id="stopButton">ストップ</button>
             <p>経過時間： <span id="timerDisplay">00:00:00</span></p>
         </div>
+        <div id="event-palette-container">
+            <h2>予定ブロック管理</h2>
+            <div id="event-palette-input">
+                <input type="text" id="eventTypeInput" placeholder="新しい予定名 (例: 課題)">
+                <input type="color" id="eventTypeColor" value="#3788d8">
+                <button id="addEventTypeBtn">追加</button>
+            </div>
+            <div id="external-events">
+                <p>↓のブロックをカレンダーにドラッグ＆ドロップ</p>
+            </div>
+        </div>
         <div id="list-view">
             <h2>記録エリア</h2>
             <ul id="recordList"></ul>
         </div>
-
         <div id="calendar-wrapper" style="display: none;">
              <h2>カレンダー表示</h2>
             <div id="calendar"></div>
         </div>
     </div>
-
     <script>
-        // CSSをインターネットから動的に読み込む
-        const fcCssLink = document.createElement('link');
-        fcCssLink.rel = 'stylesheet';
-        fcCssLink.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/main.min.css';
-        document.head.appendChild(fcCssLink);
-
-        // PWAのためのサービスワーカーを登録
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(registration => { console.log('ServiceWorker registration successful'); })
-                    .catch(err => { console.log('ServiceWorker registration failed: ', err); });
-            });
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
-            // ★変更点： calendarView を calendarWrapper に変更
+            const fcCssLink = document.createElement('link');
+            fcCssLink.rel = 'stylesheet';
+            fcCssLink.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/main.min.css';
+            document.head.appendChild(fcCssLink);
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/service-worker.js').then(reg => console.log('SW registered.')).catch(err => console.log('SW registration failed: ', err));
+                });
+            }
+
+            const eventTypeInput = document.getElementById('eventTypeInput');
+            const eventTypeColor = document.getElementById('eventTypeColor');
+            const addEventTypeBtn = document.getElementById('addEventTypeBtn');
+            const externalEventsContainer = document.getElementById('external-events');
             const taskInput = document.getElementById('taskInput');
             const startButton = document.getElementById('startButton');
             const stopButton = document.getElementById('stopButton');
@@ -114,12 +104,44 @@
             const showListBtn = document.getElementById('showListBtn');
             const showCalendarBtn = document.getElementById('showCalendarBtn');
             const listView = document.getElementById('list-view');
-            const calendarWrapper = document.getElementById('calendar-wrapper'); // ← 変更
+            const calendarWrapper = document.getElementById('calendar-wrapper');
             const calendarEl = document.getElementById('calendar');
-            let timerId = null;
-            let startTime = 0;
-            let records = [];
-            let calendar = null;
+            
+            let timerId = null, startTime = 0, records = [], eventTypes = [], calendar = null;
+
+            const renderEventTypes = () => {
+                externalEventsContainer.innerHTML = '<p>↓のブロックをカレンダーにドラッグ＆ドロップ</p>';
+                eventTypes.forEach((eventType, index) => {
+                    const wrapperEl = document.createElement('div');
+                    wrapperEl.className = 'palette-event-wrapper';
+                    wrapperEl.style.backgroundColor = eventType.color;
+                    wrapperEl.style.borderColor = eventType.color;
+                    wrapperEl.dataset.event = JSON.stringify({ title: eventType.title, duration: '01:00', backgroundColor: eventType.color, borderColor: eventType.color });
+                    const titleEl = document.createElement('span');
+                    titleEl.textContent = eventType.title;
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '&times;';
+                    deleteBtn.className = 'palette-delete-btn';
+                    deleteBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteEventType(index); });
+                    wrapperEl.appendChild(titleEl);
+                    wrapperEl.appendChild(deleteBtn);
+                    externalEventsContainer.appendChild(wrapperEl);
+                });
+            };
+
+            const saveEventTypes = () => { localStorage.setItem('myEventTypes', JSON.stringify(eventTypes)); };
+            const loadEventTypes = () => {
+                const savedTypes = localStorage.getItem('myEventTypes');
+                if (savedTypes) { eventTypes = JSON.parse(savedTypes); } else { eventTypes = [{title: '課題', color: '#dc3545'}, {title: 'バイト', color: '#28a745'}]; }
+                renderEventTypes();
+            };
+            const deleteEventType = (indexToDelete) => {
+                if (confirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`)) {
+                    eventTypes.splice(indexToDelete, 1);
+                    saveEventTypes();
+                    renderEventTypes();
+                }
+            };
 
             const renderListView = () => {
                 recordList.innerHTML = ''; 
@@ -129,9 +151,18 @@
                     const li = document.createElement('li');
                     const textSpan = document.createElement('span');
                     textSpan.className = 'record-text';
-                    const recordDate = new Date(record.createdAt);
-                    const formattedDate = `${recordDate.getFullYear()}/${String(recordDate.getMonth() + 1).padStart(2, '0')}/${String(recordDate.getDate()).padStart(2, '0')} ${String(recordDate.getHours()).padStart(2, '0')}:${String(recordDate.getMinutes()).padStart(2, '0')}`;
-                    textSpan.textContent = `[${formattedDate}] ${record.task} - ${formatTime(record.duration)}`;
+                    const endDate = new Date(record.createdAt);
+                    const startDate = new Date(record.createdAt - record.duration);
+                    const dateStr = `${startDate.getFullYear()}/${String(startDate.getMonth() + 1).padStart(2, '0')}/${String(startDate.getDate()).padStart(2, '0')}`;
+                    const startTimeStr = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+                    const endTimeStr = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+                    textSpan.textContent = `[${dateStr} ${startTimeStr}～${endTimeStr}] ${record.task} - ${formatTime(record.duration)}`;
+                    if (record.source === 'palette') {
+                        textSpan.style.color = record.color;
+                        textSpan.style.fontWeight = 'bold';
+                    } else {
+                        textSpan.style.color = '#333';
+                    }
                     const deleteButton = document.createElement('button');
                     deleteButton.textContent = '削除';
                     deleteButton.className = 'delete-button';
@@ -143,56 +174,58 @@
             };
 
             const convertRecordsToEvents = () => {
-                return records.map(record => ({
-                    title: record.task,
-                    start: new Date(record.createdAt - record.duration),
-                    end: new Date(record.createdAt)
-                }));
+                return records.map(record => ({ title: record.task, start: new Date(record.createdAt - record.duration), end: new Date(record.createdAt), id: record.createdAt, backgroundColor: record.color, borderColor: record.color }));
             };
 
             const initializeCalendar = () => {
                 calendar = new FullCalendar.Calendar(calendarEl, {
-                    locale: 'ja',
-                    firstDay: 1,
-                    initialView: 'timeGridWeek',
+                    locale: 'ja', firstDay: 1, initialView: 'timeGridWeek',
                     headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-                    allDaySlot: false,
-                    events: [],
-                    height: 'auto'
+                    allDaySlot: false, events: [], height: 'auto', editable: true, droppable: true,
+                    eventReceive: (info) => {
+                        const newRecord = { task: info.event.title, duration: info.event.end - info.event.start, createdAt: info.event.end.getTime(), color: info.event.backgroundColor, source: 'palette' };
+                        records.push(newRecord);
+                        saveRecords();
+                        renderListView();
+                        info.event.setProp('id', newRecord.createdAt);
+                    },
+                    eventDrop: (info) => {
+                        const record = records.find(r => r.createdAt == info.event.id);
+                        if (record) {
+                            const newEndTime = info.event.end.getTime();
+                            const newStartTime = info.event.start.getTime();
+                            record.createdAt = newEndTime;
+                            record.duration = newEndTime - newStartTime;
+                            info.event.setProp('id', newEndTime);
+                            saveRecords();
+                            renderListView();
+                        }
+                    },
+                    eventResize: (info) => {
+                        const record = records.find(r => r.createdAt == info.event.id);
+                        if (record) {
+                            record.createdAt = info.event.end.getTime();
+                            record.duration = info.event.end - info.event.start.getTime();
+                            info.event.setProp('id', info.event.end.getTime());
+                            saveRecords();
+                            renderListView();
+                        }
+                    }
                 });
                 calendar.render();
             };
             
-            const updateCalendarEvents = () => {
-                if (calendar) {
-                    calendar.getEventSources().forEach(source => source.remove());
-                    calendar.addEventSource(convertRecordsToEvents());
-                }
-            };
-
-            const saveRecords = () => {
-                try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); } catch (e) { console.error("記録の保存に失敗しました:", e); }
-            };
-
+            const updateCalendarEvents = () => { if (calendar) { const events = convertRecordsToEvents(); calendar.getEventSources().forEach(source => source.remove()); calendar.addEventSource(events); } };
+            const saveRecords = () => { try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); } catch (e) { console.error("記録の保存に失敗しました:", e); } };
             const loadRecords = () => {
                 try {
                     const savedRecords = localStorage.getItem('myTimerRecords');
                     if (savedRecords) { records = JSON.parse(savedRecords); }
-                } catch (e) {
-                    console.error("記録の読み込みに失敗しました:", e);
-                    records = [];
-                }
+                } catch (e) { console.error("記録の読み込みに失敗しました:", e); records = []; }
                 renderListView();
                 if (calendar) { updateCalendarEvents(); }
             };
-
-            const deleteRecord = (indexToDelete) => {
-                records.splice(indexToDelete, 1);
-                saveRecords();
-                renderListView();
-                updateCalendarEvents();
-            };
-
+            const deleteRecord = (indexToDelete) => { records.splice(indexToDelete, 1); saveRecords(); renderListView(); updateCalendarEvents(); };
             const formatTime = (milliseconds) => {
                 if (milliseconds < 0) milliseconds = 0;
                 const totalSeconds = Math.floor(milliseconds / 1000);
@@ -201,19 +234,23 @@
                 const seconds = totalSeconds % 60;
                 return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             };
-
-            startButton.addEventListener('click', () => {
-                if (timerId !== null) return;
-                if (taskInput.value.trim() === '') { alert('実施内容が入力されていません！'); return; }
-                startTime = Date.now();
-                timerId = setInterval(() => { timerDisplay.textContent = formatTime(Date.now() - startTime); }, 1000);
+            
+            addEventTypeBtn.addEventListener('click', () => {
+                const newTitle = eventTypeInput.value.trim();
+                const newColor = eventTypeColor.value;
+                if (newTitle) {
+                    if (eventTypes.some(type => type.title === newTitle)) { alert('同じ名前の予定ブロックが既に存在します。'); return; }
+                    eventTypes.push({ title: newTitle, color: newColor });
+                    saveEventTypes();
+                    renderEventTypes();
+                    eventTypeInput.value = '';
+                } else { alert('予定名を入力してください'); }
             });
-
             stopButton.addEventListener('click', () => {
                 if (timerId === null) return;
                 clearInterval(timerId);
                 const elapsedTime = Date.now() - startTime;
-                records.push({ task: taskInput.value, duration: elapsedTime, createdAt: Date.now() });
+                records.push({ task: taskInput.value, duration: elapsedTime, createdAt: Date.now(), color: '#3788d8', source: 'timer' });
                 saveRecords();
                 renderListView();
                 updateCalendarEvents();
@@ -222,24 +259,16 @@
                 timerDisplay.textContent = '00:00:00';
             });
             
-            // ★表示切替の対象を calendarWrapper に変更
-            showListBtn.addEventListener('click', () => {
-                listView.style.display = 'block';
-                calendarWrapper.style.display = 'none';
-                showListBtn.classList.add('active');
-                showCalendarBtn.classList.remove('active');
-            });
-
-            showCalendarBtn.addEventListener('click', () => {
-                listView.style.display = 'none';
-                calendarWrapper.style.display = 'block';
-                showListBtn.classList.remove('active');
-                showCalendarBtn.classList.add('active');
-                if (calendar) { calendar.updateSize(); }
-            });
-
+            showListBtn.addEventListener('click', () => { listView.style.display = 'block'; calendarWrapper.style.display = 'none'; showListBtn.classList.add('active'); showCalendarBtn.classList.remove('active'); });
+            showCalendarBtn.addEventListener('click', () => { listView.style.display = 'none'; calendarWrapper.style.display = 'block'; showListBtn.classList.remove('active'); showCalendarBtn.classList.add('active'); if (calendar) { calendar.updateSize(); } });
+            startButton.addEventListener('click', () => { if (timerId !== null) return; if (taskInput.value.trim() === '') { alert('実施内容が入力されていません！'); return; } startTime = Date.now(); timerId = setInterval(() => { timerDisplay.textContent = formatTime(Date.now() - startTime); }, 1000); });
+            
+            // ★★★ バグ修正：Draggableの初期化を一度だけに限定 ★★★
+            loadEventTypes();
             initializeCalendar();
             loadRecords();
+            // ページが読み込まれた後、一度だけDraggableを有効化する
+            new FullCalendar.Draggable(externalEventsContainer, { itemSelector: '.palette-event-wrapper' });
         });
     </script>
 </body>
