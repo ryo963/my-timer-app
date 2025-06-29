@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // PWAのためのサービスワーカーを登録
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/service-worker.js').then(reg => console.log('SW registered.')).catch(err => console.log('SW registration failed: ', err));
@@ -12,9 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let timerId = null, startTime = 0, records = [], eventTypes = [], calendar = null;
 
-    // 機能定義
-    const showMainView = () => { appContainer.style.display = 'block'; calendarWrapper.style.display = 'none'; calendarWrapper.classList.remove('fullscreen'); };
-    const showCalendarView = () => { appContainer.style.display = 'none'; calendarWrapper.style.display = 'block'; calendarWrapper.classList.add('fullscreen'); if (calendar) { calendar.updateSize(); } };
+    // ----- 機能定義 -----
+    const showMainView = () => { document.body.classList.remove('calendar-mode'); };
+    const showCalendarView = () => { document.body.classList.add('calendar-mode'); if (calendar) { setTimeout(() => calendar.updateSize(), 0); } };
     const closeModal = () => { eventChoiceModal.style.display = 'none'; };
     const showConfirm = (message, onConfirm) => {
         confirmModalMessage.textContent = message;
@@ -47,7 +46,13 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     const saveEventTypes = () => { localStorage.setItem('myEventTypes', JSON.stringify(eventTypes)); };
     const loadEventTypes = () => { const savedTypes = localStorage.getItem('myEventTypes'); if (savedTypes) { eventTypes = JSON.parse(savedTypes); } else { eventTypes = [{title: '課題', color: '#dc3545'}, {title: 'バイト', color: '#28a745'}]; } renderEventTypes(); };
-    const deleteEventType = (indexToDelete) => { showConfirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`, () => { eventTypes.splice(indexToDelete, 1); saveEventTypes(); renderEventTypes(); }); };
+    const deleteEventType = (indexToDelete) => {
+        showConfirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`, () => {
+            eventTypes.splice(indexToDelete, 1);
+            saveEventTypes();
+            renderEventTypes();
+        });
+    };
     const renderListView = () => {
         recordList.innerHTML = ''; 
         const sortedRecords = [...records].sort((a,b) => b.createdAt - a.createdAt);
@@ -66,7 +71,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const deleteButton = document.createElement('button');
             deleteButton.textContent = '削除';
             deleteButton.className = 'delete-button';
-            deleteButton.addEventListener('click', () => { showConfirm(`この記録を本当に削除しますか？\n「${record.task}」`, () => { deleteRecord(originalIndex); }); });
+            deleteButton.addEventListener('click', () => {
+                showConfirm(`この記録を本当に削除しますか？\n「${record.task}」`, () => {
+                    deleteRecord(originalIndex);
+                });
+            });
             li.appendChild(textSpan);
             li.appendChild(deleteButton);
             recordList.appendChild(li);
