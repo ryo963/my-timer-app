@@ -5,15 +5,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // HTML要素の取得
     const appContainer = document.getElementById('app-container');
-    const eventTypeInput = document.getElementById('eventTypeInput'), eventTypeColor = document.getElementById('eventTypeColor'), addEventTypeBtn = document.getElementById('addEventTypeBtn'), externalEventsContainer = document.getElementById('external-events'), taskInput = document.getElementById('taskInput'), startButton = document.getElementById('startButton'), stopButton = document.getElementById('stopButton'), timerDisplay = document.getElementById('timerDisplay'), recordList = document.getElementById('recordList'), showListBtn = document.getElementById('showListBtn'), showCalendarBtn = document.getElementById('showCalendarBtn'), listView = document.getElementById('list-view'), calendarWrapper = document.getElementById('calendar-wrapper'), calendarEl = document.getElementById('calendar'), eventChoiceModal = document.getElementById('event-choice-modal'), modalEventList = document.getElementById('modal-event-list'), modalCloseBtn = document.getElementById('modal-close-btn'), confirmModal = document.getElementById('confirm-modal'), confirmModalMessage = document.getElementById('confirm-modal-message'), confirmOkBtn = document.getElementById('confirm-ok-btn'), confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const eventTypeInput = document.getElementById('eventTypeInput'), eventTypeColor = document.getElementById('eventTypeColor'), addEventTypeBtn = document.getElementById('addEventTypeBtn'), externalEventsContainer = document.getElementById('external-events'), taskInput = document.getElementById('taskInput'), startButton = document.getElementById('startButton'), stopButton = document.getElementById('stopButton'), timerDisplay = document.getElementById('timerDisplay'), recordList = document.getElementById('recordList'), showListBtn = document.getElementById('showMainBtn'), showCalendarBtn = document.getElementById('showCalendarBtn'), listView = document.getElementById('list-view'), calendarWrapper = document.getElementById('calendar-wrapper'), calendarEl = document.getElementById('calendar'), eventChoiceModal = document.getElementById('event-choice-modal'), modalEventList = document.getElementById('modal-event-list'), modalCloseBtn = document.getElementById('modal-close-btn'), confirmModal = document.getElementById('confirm-modal'), confirmModalMessage = document.getElementById('confirm-modal-message'), confirmOkBtn = document.getElementById('confirm-ok-btn'), confirmCancelBtn = document.getElementById('confirm-cancel-btn');
     
     let timerId = null, startTime = 0, records = [], eventTypes = [], calendar = null;
 
-    // ----- 機能定義 -----
-    const showMainView = () => { document.body.classList.remove('calendar-mode'); };
-    const showCalendarView = () => { document.body.classList.add('calendar-mode'); if (calendar) { setTimeout(() => calendar.updateSize(), 0); } };
+    const showMainView = () => {
+        document.body.classList.remove('calendar-mode');
+        showListBtn.classList.add('active');
+        showCalendarBtn.classList.remove('active');
+    };
+    const showCalendarView = () => {
+        document.body.classList.add('calendar-mode');
+        showListBtn.classList.remove('active');
+        showCalendarBtn.classList.add('active');
+        if (calendar) { setTimeout(() => calendar.updateSize(), 0); }
+    };
+
     const closeModal = () => { eventChoiceModal.style.display = 'none'; };
     const showConfirm = (message, onConfirm) => {
         confirmModalMessage.textContent = message;
@@ -46,13 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     const saveEventTypes = () => { localStorage.setItem('myEventTypes', JSON.stringify(eventTypes)); };
     const loadEventTypes = () => { const savedTypes = localStorage.getItem('myEventTypes'); if (savedTypes) { eventTypes = JSON.parse(savedTypes); } else { eventTypes = [{title: '課題', color: '#dc3545'}, {title: 'バイト', color: '#28a745'}]; } renderEventTypes(); };
-    const deleteEventType = (indexToDelete) => {
-        showConfirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`, () => {
-            eventTypes.splice(indexToDelete, 1);
-            saveEventTypes();
-            renderEventTypes();
-        });
-    };
+    const deleteEventType = (indexToDelete) => { showConfirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`, () => { eventTypes.splice(indexToDelete, 1); saveEventTypes(); renderEventTypes(); }); };
     const renderListView = () => {
         recordList.innerHTML = ''; 
         const sortedRecords = [...records].sort((a,b) => b.createdAt - a.createdAt);
@@ -71,11 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const deleteButton = document.createElement('button');
             deleteButton.textContent = '削除';
             deleteButton.className = 'delete-button';
-            deleteButton.addEventListener('click', () => {
-                showConfirm(`この記録を本当に削除しますか？\n「${record.task}」`, () => {
-                    deleteRecord(originalIndex);
-                });
-            });
+            deleteButton.addEventListener('click', () => { showConfirm(`この記録を本当に削除しますか？\n「${record.task}」`, () => { deleteRecord(originalIndex); }); });
             li.appendChild(textSpan);
             li.appendChild(deleteButton);
             recordList.appendChild(li);
@@ -86,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar = new FullCalendar.Calendar(calendarEl, {
             locale: 'ja', firstDay: 1, initialView: 'timeGridWeek',
             headerToolbar: { left: 'backToListBtn prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-            customButtons: { backToListBtn: { text: 'メインに戻る', click: () => { showMainView(); } } },
+            customButtons: { backToListBtn: { text: 'メイン画面へ', click: showMainView } },
             allDaySlot: false, events: convertRecordsToEvents(), height: '100%', editable: true, droppable: true,
             stickyHeaderDates: true,
             dateClick: function(info) {
@@ -145,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateCalendarEvents = () => { if (calendar) { const events = convertRecordsToEvents(); calendar.getEventSources().forEach(source => source.remove()); calendar.addEventSource(events); } };
     const saveRecords = () => { try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); } catch (e) { console.error("記録の保存に失敗しました:", e); } };
     const loadRecords = () => { try { const savedRecords = localStorage.getItem('myTimerRecords'); if (savedRecords) { records = JSON.parse(savedRecords); } } catch (e) { console.error("記録の読み込みに失敗しました:", e); records = []; } renderListView(); if (calendar) { updateCalendarEvents(); } };
-    const deleteRecord = (indexToDelete) => { records.splice(indexToDelete, 1); saveRecords(); renderListView(); updateCalendarEvents(); };
+    const deleteRecord = (indexToDelete) => { showConfirm(`この記録を本当に削除しますか？\n「${records[indexToDelete].task}」`, () => { records.splice(indexToDelete, 1); saveRecords(); renderListView(); updateCalendarEvents(); }); };
     const formatTime = (milliseconds) => { if (milliseconds < 0) milliseconds = 0; const totalSeconds = Math.floor(milliseconds / 1000); const hours = Math.floor(totalSeconds / 3600); const minutes = Math.floor((totalSeconds % 3600) / 60); const seconds = totalSeconds % 60; return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; };
     
     // イベントリスナー設定
