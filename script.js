@@ -1,10 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // PWAのためのサービスワーカーを登録
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/service-worker.js').then(reg => console.log('SW registered.')).catch(err => console.log('SW registration failed: ', err));
         });
     }
 
+    // HTML要素の取得
     const appContainer = document.getElementById('app-container');
     const eventTypeInput = document.getElementById('eventTypeInput'), eventTypeColor = document.getElementById('eventTypeColor'), addEventTypeBtn = document.getElementById('addEventTypeBtn'), externalEventsContainer = document.getElementById('external-events'), taskInput = document.getElementById('taskInput'), startButton = document.getElementById('startButton'), stopButton = document.getElementById('stopButton'), timerDisplay = document.getElementById('timerDisplay'), recordList = document.getElementById('recordList'), showListBtn = document.getElementById('showMainBtn'), showCalendarBtn = document.getElementById('showCalendarBtn'), listView = document.getElementById('list-view'), calendarWrapper = document.getElementById('calendar-wrapper'), calendarEl = document.getElementById('calendar'), eventChoiceModal = document.getElementById('event-choice-modal'), modalEventList = document.getElementById('modal-event-list'), modalCloseBtn = document.getElementById('modal-close-btn'), confirmModal = document.getElementById('confirm-modal'), confirmModalMessage = document.getElementById('confirm-modal-message'), confirmOkBtn = document.getElementById('confirm-ok-btn'), confirmCancelBtn = document.getElementById('confirm-cancel-btn');
     
@@ -12,13 +14,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const showMainView = () => {
         document.body.classList.remove('calendar-mode');
-        showListBtn.classList.add('active');
-        showCalendarBtn.classList.remove('active');
     };
     const showCalendarView = () => {
         document.body.classList.add('calendar-mode');
-        showListBtn.classList.remove('active');
-        showCalendarBtn.classList.add('active');
         if (calendar) { setTimeout(() => calendar.updateSize(), 0); }
     };
 
@@ -80,11 +78,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
     const convertRecordsToEvents = () => { return records.map(record => ({ title: record.task, start: new Date(record.createdAt - record.duration), end: new Date(record.createdAt), id: record.createdAt, backgroundColor: record.color, borderColor: record.color })); };
+
     const initializeCalendar = () => {
         calendar = new FullCalendar.Calendar(calendarEl, {
             locale: 'ja', firstDay: 1, initialView: 'timeGridWeek',
-            headerToolbar: { left: 'backToListBtn prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
-            customButtons: { backToListBtn: { text: 'メイン画面へ', click: showMainView } },
+            
+            // ★★★ ここからが今回の修正箇所 ★★★
+            headerToolbar: {
+                left: 'backToListBtn prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek' // 'day' を削除
+            },
+            buttonText: {
+                month: '月', // 表示を日本語に
+                week: '週'   // 表示を日本語に
+            },
+            titleFormat: { year: 'numeric', month: 'long' }, // 年と月だけの表示に変更
+            // ★★★ ここまでが今回の修正箇所 ★★★
+
+            customButtons: {
+                backToListBtn: {
+                    text: 'メインに戻る',
+                    click: showMainView
+                }
+            },
             allDaySlot: false, events: convertRecordsToEvents(), height: '100%', editable: true, droppable: true,
             stickyHeaderDates: true,
             dateClick: function(info) {
@@ -140,6 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar.render();
         new FullCalendar.Draggable(externalEventsContainer, { itemSelector: '.palette-event-wrapper' });
     };
+    
     const updateCalendarEvents = () => { if (calendar) { const events = convertRecordsToEvents(); calendar.getEventSources().forEach(source => source.remove()); calendar.addEventSource(events); } };
     const saveRecords = () => { try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); } catch (e) { console.error("記録の保存に失敗しました:", e); } };
     const loadRecords = () => { try { const savedRecords = localStorage.getItem('myTimerRecords'); if (savedRecords) { records = JSON.parse(savedRecords); } } catch (e) { console.error("記録の読み込みに失敗しました:", e); records = []; } renderListView(); if (calendar) { updateCalendarEvents(); } };
