@@ -34,10 +34,13 @@ button { padding: 10px 20px; border: none; border-radius: 5px; color: white; fon
 /* ★★★ フルページ表示のロジック ★★★ */
 /* 通常時はメイン画面だけ表示し、カレンダーは隠す */
 #app-container { display: block; }
-#calendar-wrapper { display: none; }
+/* style.css の該当部分をこの内容で置き換える */
 
-/* bodyに 'calendar-mode' クラスが付いた時のスタイル */
-body.calendar-mode #app-container { display: none; }
+/* フルページ表示でない通常時のラッパー（変更なし）*/
+#calendar-wrapper {
+    display: none;
+}
+/* フルページ表示時のラッパーに横スクロールを設定 */
 body.calendar-mode #calendar-wrapper {
     display: block;
     position: fixed;
@@ -49,7 +52,11 @@ body.calendar-mode #calendar-wrapper {
     z-index: 2000;
     padding: 10px;
     box-sizing: border-box;
+    overflow-x: auto; /* ★ 横スクロールを許可 */
+    -webkit-overflow-scrolling: touch;
 }
+/* フルページ表示時のカレンダー本体に、最低幅を指定 */
 body.calendar-mode #calendar {
-    height: 100% !important; /* 高さいっぱいに広げる */
+    min-width: 700px; /* ★ この幅より画面が狭い場合にスクロールが発生 */
+    height: 100% !important;
 }
