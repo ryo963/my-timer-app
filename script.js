@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // HTML要素の取得
+    const toastContainer = document.getElementById('toast-container');
     const appContainer = document.getElementById('app-container');
     const eventTypeInput = document.getElementById('eventTypeInput'), eventTypeColor = document.getElementById('eventTypeColor'), addEventTypeBtn = document.getElementById('addEventTypeBtn'), externalEventsContainer = document.getElementById('external-events'), taskInput = document.getElementById('taskInput'), startButton = document.getElementById('startButton'), stopButton = document.getElementById('stopButton'), timerDisplay = document.getElementById('timerDisplay'), recordList = document.getElementById('recordList'), showListBtn = document.getElementById('showMainBtn'), showCalendarBtn = document.getElementById('showCalendarBtn'), listView = document.getElementById('list-view'), calendarWrapper = document.getElementById('calendar-wrapper'), calendarEl = document.getElementById('calendar'), eventChoiceModal = document.getElementById('event-choice-modal'), modalEventList = document.getElementById('modal-event-list'), modalCloseBtn = document.getElementById('modal-close-btn'), confirmModal = document.getElementById('confirm-modal'), confirmModalMessage = document.getElementById('confirm-modal-message'), confirmOkBtn = document.getElementById('confirm-ok-btn'), confirmCancelBtn = document.getElementById('confirm-cancel-btn');
     
@@ -31,6 +32,20 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmOkBtn.addEventListener('click', okListener);
         confirmCancelBtn.addEventListener('click', cancelListener);
     };
+
+     // ★★★ トースト通知を表示する機能を追加 ★★★
+    const showToast = (message) => {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+
+        // アニメーションが終わったら要素を削除
+        setTimeout(() => {
+            toast.remove();
+        }, 3000); // 3秒後に削除
+    };
+
     const renderEventTypes = () => {
         externalEventsContainer.innerHTML = '<p>↓のブロックをカレンダーにドラッグ＆ドロップ（またはタップで作成）</p>';
         eventTypes.forEach((eventType, index) => {
@@ -50,7 +65,8 @@ document.addEventListener('DOMContentLoaded', function() {
             externalEventsContainer.appendChild(wrapperEl);
         });
     };
-    const saveEventTypes = () => { localStorage.setItem('myEventTypes', JSON.stringify(eventTypes)); };
+    const saveEventTypes = () => { localStorage.setItem('myEventTypes', JSON.stringify(eventTypes));showToast('予定ブロックを更新しました'); // ★通知を呼び出し
+    };
     const loadEventTypes = () => { const savedTypes = localStorage.getItem('myEventTypes'); if (savedTypes) { eventTypes = JSON.parse(savedTypes); } else { eventTypes = [{title: '課題', color: '#dc3545'}, {title: 'バイト', color: '#28a745'}]; } renderEventTypes(); };
     const deleteEventType = (indexToDelete) => { showConfirm(`「${eventTypes[indexToDelete].title}」の予定ブロックを削除しますか？`, () => { eventTypes.splice(indexToDelete, 1); saveEventTypes(); renderEventTypes(); }); };
     const renderListView = () => {
@@ -83,7 +99,6 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar = new FullCalendar.Calendar(calendarEl, {
             locale: 'ja', firstDay: 1, initialView: 'timeGridWeek',
             
-            // ★★★ ここからが今回の修正箇所 ★★★
             headerToolbar: {
                 left: 'backToListBtn prev,next today',
                 center: 'title',
@@ -94,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 week: '週'   // 表示を日本語に
             },
             titleFormat: { year: 'numeric', month: 'long' }, // 年と月だけの表示に変更
-            // ★★★ ここまでが今回の修正箇所 ★★★
 
             customButtons: {
                 backToListBtn: {
@@ -159,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     const updateCalendarEvents = () => { if (calendar) { const events = convertRecordsToEvents(); calendar.getEventSources().forEach(source => source.remove()); calendar.addEventSource(events); } };
-    const saveRecords = () => { try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); } catch (e) { console.error("記録の保存に失敗しました:", e); } };
+    const saveRecords = () => { try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); showToast('記録を保存しました'); /*★通知を呼び出し*/} catch (e) { console.error("記録の保存に失敗しました:", e); } };
     const loadRecords = () => { try { const savedRecords = localStorage.getItem('myTimerRecords'); if (savedRecords) { records = JSON.parse(savedRecords); } } catch (e) { console.error("記録の読み込みに失敗しました:", e); records = []; } renderListView(); if (calendar) { updateCalendarEvents(); } };
     const deleteRecord = (indexToDelete) => { showConfirm(`この記録を本当に削除しますか？\n「${records[indexToDelete].task}」`, () => { records.splice(indexToDelete, 1); saveRecords(); renderListView(); updateCalendarEvents(); }); };
     const formatTime = (milliseconds) => { if (milliseconds < 0) milliseconds = 0; const totalSeconds = Math.floor(milliseconds / 1000); const hours = Math.floor(totalSeconds / 3600); const minutes = Math.floor((totalSeconds % 3600) / 60); const seconds = totalSeconds % 60; return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; };
