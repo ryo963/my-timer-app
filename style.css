@@ -113,3 +113,46 @@ body.calendar-mode #calendar {
     85% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-10px); }
 }
+
+
+/* ★★★ カレンダーヘッダーのレイアウト調整（最終版） ★★★ */
+
+/* ヘッダー中央の年月表示のサイズを小さくする */
+.fc .fc-toolbar-title {
+    font-size: 1.5em;
+}
+
+/* ヘッダーの全ボタンに対する共通スタイル */
+.fc .fc-button-primary {
+    padding: .3em .55em;
+    font-size: 0.9em;
+    background-color: white;
+    color: #007bff;
+    border: 1px solid #007bff;
+    text-transform: none; /* today が TODAY になるのを防ぐ */
+    box-shadow: none !important; /* フォーカス時の影を消す */
+    transition: background-color 0.2s, color 0.2s;
+}
+
+/* 非アクティブなボタンにマウスを乗せた時のスタイル */
+.fc .fc-button-primary:not(:disabled):not(.fc-button-active):hover {
+    background-color: #e6f2ff;
+    color: #007bff;
+}
+
+/* アクティブな（選択中の）ボタンのスタイル */
+.fc .fc-button-primary.fc-button-active,
+.fc .fc-button-primary:active,
+.fc .fc-button-primary:focus {
+    background-color: #007bff !important; /* ★ !important を追加 */
+    color: white !important;            /* ★ !important を追加 */
+    border-color: #007bff !important;    /* ★ !important を追加 */
+    box-shadow: none !important;         /* ★ !important を追加 */
+}
+
+/* 非活性なボタンのスタイル */
+.fc .fc-button-primary:disabled {
+    background-color: navy;
+    border-color: navy;
+    color: white;
+}
