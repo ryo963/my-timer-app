@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 month: '月', // 表示を日本語に
                 week: '週'   // 表示を日本語に
             },
-            titleFormat: { year: 'numeric', month: 'long' }, // 年と月だけの表示に変更
+            titleFormat: { year: 'numeric', month: 'numeric' }, // 年と月だけの表示に変更
 
             customButtons: {
                 backToListBtn: {
