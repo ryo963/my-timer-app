@@ -57,6 +57,6 @@ body.calendar-mode #calendar-wrapper {
 }
 /* フルページ表示時のカレンダー本体に、最低幅を指定 */
 body.calendar-mode #calendar {
-    min-width: 400px; /* ★ この幅より画面が狭い場合にスクロールが発生 */
+    min-width: 550px; /* ★ この幅より画面が狭い場合にスクロールが発生 */
     height: 90% !important;
 }
