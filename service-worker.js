@@ -1,4 +1,4 @@
-const CACHE_NAME = 'timetracker-cache-v12'; // バージョンをv12に更新
+const CACHE_NAME = 'timetracker-cache-v13'; // バージョンをv13に更新
 const urlsToCache = [
   '/',
   'index.html',
