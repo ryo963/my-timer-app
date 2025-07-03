@@ -138,101 +138,105 @@ document.addEventListener('DOMContentLoaded', function() {
                             text: 'PDF出力',
                             click: () => {
                                 showToast('PDFを生成中です...');
+                                try {
+                                    const { jsPDF } = window.jspdf;
+                                    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+                                    
+                                    const page_w = doc.internal.pageSize.getWidth();
+                                    const margin = 30;
+                                    const body_w = page_w - (margin * 2);
+                                    
+                                    // --- SVG生成のためのパラメータ定義 ---
+                                    const svg_w = 800; // SVG全体の幅
+                                    const hour_col_w = 45; // 時間列の幅
+                                    const day_col_w = (svg_w - hour_col_w) / 7; // 1日の幅
+                                    const header_h = 40; // ヘッダーの高さ
+                                    const hour_h = 40;   // 1時間の高さ
 
-                                // 1. 印刷用のスタイルとHTMLの骨組みを作成
-                                let printHtml = `
-                                    <html><head><title>印刷用カレンダー</title>
-                                    <style>
-                                        body { font-family: sans-serif; }
-                                        .print-wrapper { position: relative; }
-                                        .print-table { width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed; }
-                                        .print-table th, .print-table td { border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; text-align: center; vertical-align: top; }
-                                        .print-table th { background-color: #f7f7f7; height: 40px; padding-top: 10px; border-bottom: 3px solid black; }
-                                        .print-table td { padding: 0; }
-                                        .hour-col { width: 45px; font-size: 9pt; vertical-align: top; text-align: right; padding-top: -2px; padding-right: 5px; border: none; }
-                                        .day-cell { position: relative; } /* イベントを配置する基準点 */
-                                        .hour-slot { height: 50px; box-sizing: border-box; } /* 1時間の高さを40pxに */
-                                        .line-odd { border-bottom: 1px dotted grey; }
-                                        .line-even { border-bottom: 1px solid black; }
-                                        .line-6multiple { border-bottom: 2px solid black; }
-                                        .event-block {
-                                            position: absolute;
-                                            width: calc(100% - 2px); /* セルの枠線分を考慮 */
-                                            left: 1px;
-                                            color: white; padding: 2px 4px; border-radius: 4px;
-                                            font-size: 8pt; font-weight: bold; overflow: hidden;
-                                            box-sizing: border-box; z-index: 10; border: 1px solid rgba(0,0,0,0.3);
-                                            -webkit-print-color-adjust: exact; print-color-adjust: exact;
-                                        }
-                                    </style>
-                                    </head><body>
-                                    <div class="print-wrapper">
-                                        <h2>${calendar.view.title}</h2>
-                                        <table class="print-table">
-                                            <thead><tr><th class="hour-col"></th>
-                                `;
+                                    let svgContent = ''; // SVGの中身をここに組み立てていく
 
-                                const view = calendar.view;
-                                const weekStartDate = view.activeStart;
-                                const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-                                for (let i = 0; i < 7; i++) {
-                                    const d = new Date(weekStartDate);
-                                    d.setDate(d.getDate() + i);
-                                    printHtml += `<th>${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]})</th>`;
-                                }
-                                printHtml += '</tr></thead><tbody>';
-
-                                for (let hour = 6; hour <= 23; hour++) {
-                                    let lineClass = 'hour-slot ';
-                                    if (hour % 6 === 0) { lineClass += 'line-6multiple'; }
-                                    else if (hour % 2 === 0) { lineClass += 'line-even'; }
-                                    else { lineClass += 'line-odd'; }
-                                    printHtml += `<tr><td class="hour-col" style="height:40px;">${hour}:00</td>`;
-                                    for (let day = 0; day < 7; day++) {
-                                        printHtml += `<td class="day-cell" id="print-cell-${day}-${hour}"><div class="${lineClass}"></div></td>`;
+                                    // 1. 曜日ヘッダーと背景の描画
+                                    const view = calendar.view;
+                                    const weekStartDate = view.activeStart;
+                                    const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                                    for (let i = 0; i < 7; i++) {
+                                        const d = new Date(weekStartDate);
+                                        d.setDate(d.getDate() + i);
+                                        const x = hour_col_w + (i * day_col_w);
+                                        svgContent += `<rect x="${x}" y="0" width="${day_col_w}" height="${header_h}" fill="#f7f7f7" stroke="#e0e0e0" stroke-width="1"></rect>`;
+                                        svgContent += `<text x="${x + day_col_w / 2}" y="${header_h / 2 + 5}" font-family="sans-serif" font-size="12" text-anchor="middle">${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]})</text>`;
                                     }
-                                    printHtml += `</tr>`;
-                                }
-                                printHtml += '</tbody></table></div></body></html>';
-                                
-                                // 2. 新しいタブを開き、まず骨組みだけを書き込む
-                                const printWindow = window.open('', '_blank');
-                                printWindow.document.open();
-                                printWindow.document.write(printHtml);
-                                
-                                // 3. 新しいタブ内のテーブルに、イベントを配置
-                                const allRecords = JSON.parse(localStorage.getItem('myTimerRecords') || '[]');
-                                allRecords.forEach(record => {
-                                    const eventStartDate = new Date(record.createdAt - record.duration);
-                                    if (eventStartDate >= weekStartDate && eventStartDate < view.activeEnd) {
-                                        const dayOfWeek = eventStartDate.getDay();
-                                        const startHour = eventStartDate.getHours();
+                                    svgContent += `<line x1="${hour_col_w}" y1="${header_h}" x2="${svg_w}" y2="${header_h}" stroke="black" stroke-width="2"></line>`;
+
+                                    // 2. 時間列と罫線の描画
+                                    for (let hour = 6; hour <= 23; hour++) {
+                                        const y = header_h + (hour - 6) * hour_h;
+                                        svgContent += `<text x="${hour_col_w - 5}" y="${y + 14}" font-family="sans-serif" font-size="12" text-anchor="end">${hour}:00</text>`;
                                         
-                                        // 対応するセルを、新しいタブのDOMから正確に取得
-                                        const cell = printWindow.document.querySelector(`#print-cell-${dayOfWeek}-${startHour}`);
-                                        if (cell) {
-                                            const eventDiv = printWindow.document.createElement('div');
-                                            eventDiv.className = 'event-block';
-                                            
-                                            const displayColor = record.source === 'palette' ? blendColors(record.color, '#FFFFFF', 0.7) : record.color;
-                                            eventDiv.style.backgroundColor = displayColor;
-                                            
-                                            const PIXELS_PER_HOUR = 50;
+                                        let stroke_w = '1'; let stroke_color = '#e0e0e0'; let stroke_dash = '3, 3';
+                                        if (hour % 6 === 0) { stroke_w = '2'; stroke_color = 'black'; stroke_dash = ''; }
+                                        else if (hour % 2 === 0) { stroke_w = '1'; stroke_color = 'black'; stroke_dash = ''; }
+                                        
+                                        svgContent += `<line x1="${hour_col_w}" y1="${y}" x2="${svg_w}" y2="${y}" stroke="${stroke_color}" stroke-width="${stroke_w}" stroke-dasharray="${stroke_dash}"></line>`;
+                                    }
+
+                                    // 3. 予定ブロックの描画
+                                    const allRecords = JSON.parse(localStorage.getItem('myTimerRecords') || '[]');
+                                    allRecords.forEach(record => {
+                                        const eventStartDate = new Date(record.createdAt - record.duration);
+                                        if (eventStartDate >= weekStartDate && eventStartDate < view.activeEnd) {
+                                            const dayOfWeek = eventStartDate.getDay();
+                                            const startHour = eventStartDate.getHours();
+                                            if (startHour < 6) return;
+
                                             const startMinute = eventStartDate.getMinutes();
                                             const durationMinutes = record.duration / 1000 / 60;
                                             
-                                            eventDiv.style.top = `${(startMinute / 60) * PIXELS_PER_HOUR}px`;
-                                            eventDiv.style.height = `${(durationMinutes / 60) * PIXELS_PER_HOUR - 2}px`; // 枠線分を引く
+                                            const x = hour_col_w + (dayOfWeek * day_col_w);
+                                            const y = header_h + ((startHour - 6) * hour_h) + ((startMinute / 60) * hour_h);
+                                            const h = (durationMinutes / 60) * hour_h;
+                                            const w = day_col_w;
 
+                                            const displayColor = record.source === 'palette' ? blendColors(record.color, '#FFFFFF', 0.6) : record.color;
                                             const startTimeStr = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
                                             const endTimeStr = `${String(new Date(record.createdAt).getHours()).padStart(2, '0')}:${String(new Date(record.createdAt).getMinutes()).padStart(2, '0')}`;
-                                            eventDiv.innerHTML = `<strong>${startTimeStr}-${endTimeStr}</strong><br>${record.task}`;
+
+                                            // 四角形を描画
+                                            svgContent += `<rect x="${x + 2}" y="${y + 1}" width="${w - 4}" height="${h - 2}" rx="3" ry="3" fill="${displayColor}" stroke="rgba(0,0,0,0.3)" stroke-width="1"></rect>`;
                                             
-                                            cell.appendChild(eventDiv);
+                                            // テキストを描画（クリッピングパスを使ってはみ出さないように）
+                                            const clipId = `clip-${record.createdAt}`;
+                                            svgContent += `<defs><clipPath id="${clipId}"><rect x="${x + 2}" y="${y + 1}" width="${w - 4}" height="${h - 2}"></rect></clipPath></defs>`;
+                                            svgContent += `<text x="${x + 5}" y="${y + 12}" font-family="sans-serif" font-size="10" font-weight="bold" fill="white" clip-path="url(#${clipId})">${startTimeStr}-${endTimeStr} ${record.task}</text>`;
                                         }
+                                    });
+
+                                    // 4. SVG全体を組み立てて、PDFに追加
+                                    const finalSvg = `<svg width="${svg_w}" height="${header_h + (18 * hour_h)}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+                                    const svgBlob = new Blob([finalSvg], {type: 'image/svg+xml;charset=utf-8'});
+                                    const url = URL.createObjectURL(svgBlob);
+                                    
+                                    const img = new Image();
+                                    img.onload = function() {
+                                        const canvas = document.createElement('canvas');
+                                        canvas.width = this.width;
+                                        canvas.height = this.height;
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.drawImage(this, 0, 0);
+                                        const dataUrl = canvas.toDataURL('image/png');
+                                        
+                                        const pdfWidth = doc.internal.pageSize.getWidth();
+                                        const pdfHeight = (this.height * pdfWidth) / this.width;
+                                        doc.addImage(dataUrl, 'PNG', 0, 40, pdfWidth, pdfHeight);
+                                        doc.save("calendar.pdf");
+                                        URL.revokeObjectURL(url); // 後片付け
                                     }
-                                });
-                                printWindow.document.close();
+                                    img.src = url;
+
+                                } catch(e) {
+                                    console.error(e);
+                                    alert('PDFの生成に失敗しました。');
+                                }
                             }
                         }
                     },
