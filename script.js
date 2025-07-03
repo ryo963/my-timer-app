@@ -51,8 +51,11 @@ document.addEventListener('DOMContentLoaded', function() {
         eventTypes.forEach((eventType, index) => {
             const wrapperEl = document.createElement('div');
             wrapperEl.className = 'palette-event-wrapper fc-event';
-            wrapperEl.style.backgroundColor = eventType.color;
-            wrapperEl.style.borderColor = eventType.color;
+            // ★ 変更点：色をブレンドして適用
+             const displayColor = blendColors(eventType.color, '#FFFFFF', 0.65);
+            wrapperEl.style.backgroundColor = displayColor;
+            wrapperEl.style.borderColor = displayColor;
+
             wrapperEl.dataset.event = JSON.stringify({ title: eventType.title, duration: '01:00', backgroundColor: eventType.color, borderColor: eventType.color });
             const titleEl = document.createElement('span');
             titleEl.textContent = eventType.title;
@@ -93,16 +96,30 @@ document.addEventListener('DOMContentLoaded', function() {
             recordList.appendChild(li);
         });
     };
-    const convertRecordsToEvents = () => { return records.map(record => ({ title: record.task, start: new Date(record.createdAt - record.duration), end: new Date(record.createdAt), id: record.createdAt, backgroundColor: record.color, borderColor: record.color })); };
+    const convertRecordsToEvents = () => {
+                return records.map(record => {
+                    // ★ 変更点：色をブレンドして適用
+                    const displayColor = record.source === 'palette' ? blendColors(record.color, '#FFFFFF', 0.65) : record.color;
+                    
+                    return {
+                        title: record.task,
+                        start: new Date(record.createdAt - record.duration),
+                        end: new Date(record.createdAt),
+                        id: record.createdAt,
+                        backgroundColor: displayColor,
+                        borderColor: displayColor
+                    };
+                });
+            };
 
     const initializeCalendar = () => {
         calendar = new FullCalendar.Calendar(calendarEl, {
             locale: 'ja', firstDay: 1, initialView: 'timeGridWeek',
             
             headerToolbar: {
-                left: 'backToListBtn prev,next today exportPdfBtn',
+                left: 'backToListBtn prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek' // 'day' を削除
+                right: 'exportPdfBtn dayGridMonth,timeGridWeek' // 'day' を削除
             },
             buttonText: {
                 month: '月', // 表示を日本語に
@@ -112,8 +129,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // --- script.js の initializeCalendar 関数内、customButtons ブロックを、以下で置き換える ---
 
-                    // --- script.js の initializeCalendar 関数内、customButtons ブロックを、以下で置き換える ---
-
                     customButtons: {
                         backToListBtn: {
                             text: 'メインに戻る',
@@ -122,49 +137,48 @@ document.addEventListener('DOMContentLoaded', function() {
                         exportPdfBtn: {
                             text: 'PDF出力',
                             click: () => {
-                                showToast('PDFを生成中です...');
-
-                                // 1. 印刷用のスタイルとHTMLの骨組みを作成
-                                // ★ あなたが完成させた横実線CSSをここに適用
+                                // 1. 印刷用のHTMLを生成するロジック
                                 let printHtml = `
-                                    <style>
-                                        .print-table { width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed; }
-                                        .print-table th, .print-table td { border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; text-align: center; vertical-align: top; }
-                                        .print-table th { background-color: #f7f7f7; height: 40px; padding-top: 10px; border-bottom: 3px solid black; }
-                                        .print-table td { padding: 0; position: relative; } /* ★padding:0は維持 */
-                                        .hour-col { width: 45px; font-size: 9pt; vertical-align: top; text-align: right; padding-top: -2px; padding-right: 5px; border: none; }
-                                        .day-cell { position: relative; }
-                                        .hour-slot { height: 40px; box-sizing: border-box; } /* ★1時間の高さを定義 */
-                                        .line-odd { border-bottom: 2px dotted grey; }
-                                        .line-even { border-bottom: 2px solid black; }
-                                        .line-12multiple { border-bottom: 3px solid black; }
-                                        .event-block {
-                                            position: absolute;
-                                            width: calc(100% - 4px);
-                                            left: 2px;
-                                            color: white;
-                                            padding: 2px 4px;
-                                            border-radius: 4px;
-                                            font-size: 8pt;
-                                            font-weight: bold;
-                                            overflow: hidden;
-                                            box-sizing: border-box;
-                                            z-index: 10;
-                                            border: 1px solid rgba(0,0,0,0.3);
-                                            /* ★★★ ここからが今回の修正箇所 ★★★ */
-                                            color: white !important; /* 文字色を強制的に白に */
-                                            -webkit-print-color-adjust: exact !important; /* Chrome, Safariでの印刷色を強制 */
-                                            print-color-adjust: exact !important; /* 標準の印刷色強制プロパティ */
-                                        }
-                                    </style>
-                                    <h2>${calendar.view.title}</h2>
-                                    <table class="print-table">
-                                        <thead>
-                                            <tr>
-                                                <th class="hour-col"></th>
+                                    <html>
+                                    <head>
+                                        <title>印刷用カレンダー - ${calendar.view.title}</title>
+                                        <style>
+                                            body { font-family: sans-serif; }
+                                            .print-table { width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed; }
+                                            .print-table th, .print-table td { border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; text-align: center; vertical-align: top; position: relative; }
+                                            .print-table th { background-color: #f7f7f7; height: 40px; padding-top: 10px; border-bottom: 3px solid black; }
+                                            .print-table td { height: 30px; padding: 0; }
+                                            .hour-col { width: 45px; font-size: 9pt; vertical-align: top; text-align: right; padding-top: -2px; padding-right: 5px; border: none; }
+                                            .day-cell { position: relative; }
+                                            .hour-slot { height: 100%; box-sizing: border-box; }
+                                            .line-odd { border-bottom: 2px dotted grey; }
+                                            .line-even { border-bottom: 2px solid black; }
+                                            .line-12multiple { border-bottom: 3px solid black; }
+                                            .event-block {
+                                                position: absolute;
+                                                width: calc(100% - 4px);
+                                                left: 2px;
+                                                color: white;
+                                                padding: 2px 4px;
+                                                border-radius: 4px;
+                                                font-size: 8pt;
+                                                font-weight: bold;
+                                                overflow: hidden;
+                                                box-sizing: border-box;
+                                                z-index: 10;
+                                                border: 1px solid rgba(0,0,0,0.3);
+                                                -webkit-print-color-adjust: exact;
+                                                print-color-adjust: exact;
+                                            }
+                                        </style>
+                                    </head>
+                                    <body>
+                                        <h2>${calendar.view.title}</h2>
+                                        <table class="print-table">
+                                            <thead>
+                                                <tr>
+                                                    <th class="hour-col"></th>
                                 `;
-
-                                // 2. 曜日ヘッダーを生成
                                 const view = calendar.view;
                                 const weekStartDate = view.activeStart;
                                 const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
@@ -174,62 +188,57 @@ document.addEventListener('DOMContentLoaded', function() {
                                     printHtml += `<th>${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]})</th>`;
                                 }
                                 printHtml += '</tr></thead><tbody>';
-
-                                // 3. 6時から23時までの行とセル、罫線を生成
                                 for (let hour = 6; hour <= 23; hour++) {
                                     let lineClass = 'hour-slot ';
                                     if (hour % 12 === 0) { lineClass += 'line-12multiple'; }
                                     else if (hour % 4 === 0) { lineClass += 'line-even'; }
                                     else { lineClass += 'line-odd'; }
-
                                     printHtml += `<tr><td class="hour-col">${hour}:00</td>`;
                                     for (let day = 0; day < 7; day++) {
                                         printHtml += `<td class="day-cell" id="print-cell-${day}-${hour}"><div class="${lineClass}"></div></td>`;
                                     }
                                     printHtml += `</tr>`;
                                 }
-                                printHtml += '</tbody></table>';
+                                printHtml += '</tbody></table></body></html>';
                                 
-                                printContainer.innerHTML = printHtml;
-
-                                // 4. 全記録データからイベントを配置
+                                // 2. 新しいタブを開き、HTMLを書き込む
+                                const printWindow = window.open('', '_blank');
+                                printWindow.document.write(printHtml);
+                                
+                                // 3. 新しいタブ内のテーブルに、イベントを配置
                                 const allRecords = JSON.parse(localStorage.getItem('myTimerRecords') || '[]');
                                 allRecords.forEach(record => {
                                     const eventStartDate = new Date(record.createdAt - record.duration);
-                                    
                                     if (eventStartDate >= weekStartDate && eventStartDate < view.activeEnd) {
                                         const dayOfWeek = eventStartDate.getDay();
                                         const startHour = eventStartDate.getHours();
-                                        
-                                        // イベントを配置すべき親のセルを見つける
-                                        const parentCell = printContainer.querySelector(`#print-cell-${dayOfWeek}-${startHour}`);
-                                        if (parentCell) {
-                                            const eventDiv = document.createElement('div');
+                                        const cell = printWindow.document.querySelector(`#print-cell-${dayOfWeek}-${startHour}`);
+                                        if (cell) {
+                                            const eventDiv = printWindow.document.createElement('div');
                                             eventDiv.className = 'event-block';
                                             
-                                            const PIXELS_PER_HOUR = 40; // 1時間の高さを40pxに設定
+                                            // ★★★ ここからが今回の修正箇所 ★★★
+                                            // 記録の由来に応じて、色をブレンドするかどうかを判断
+                                            const displayColor = record.source === 'palette' 
+                                                ? blendColors(record.color, '#FFFFFF', 0.7) // パレットからの予定は色を70%に薄める
+                                                : record.color; // 計測からの予定はそのままの色
+                                            
+                                            eventDiv.style.backgroundColor = displayColor;
+                                            // ★★★ ここまで ★★★
+
+                                            const PIXELS_PER_HOUR = 30;
                                             const startMinute = eventStartDate.getMinutes();
                                             const durationMinutes = record.duration / 1000 / 60;
-                                            
-                                            // ★★★ 修正点：インラインスタイルで、位置、高さ、色を強制的に指定 ★★★
                                             eventDiv.style.top = `${(startMinute / 60) * PIXELS_PER_HOUR}px`;
                                             eventDiv.style.height = `${(durationMinutes / 60) * PIXELS_PER_HOUR}px`;
-                                            eventDiv.style.backgroundColor = record.color;
-
                                             const startTimeStr = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
                                             const endTimeStr = `${String(new Date(record.createdAt).getHours()).padStart(2, '0')}:${String(new Date(record.createdAt).getMinutes()).padStart(2, '0')}`;
                                             eventDiv.innerHTML = `<strong>${startTimeStr}-${endTimeStr}</strong><br>${record.task}`;
-                                            
-                                            parentCell.appendChild(eventDiv);
+                                            cell.appendChild(eventDiv);
                                         }
                                     }
                                 });
-
-                                // 5. 印刷機能を呼び出す
-                                window.print();
-
-                                // 6. 後片付け
-                                printContainer.innerHTML = '';
+                                printWindow.document.close();
                             }
                         }
                     },
@@ -295,6 +304,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const deleteRecord = (indexToDelete) => { showConfirm(`この記録を本当に削除しますか？\n「${records[indexToDelete].task}」`, () => { records.splice(indexToDelete, 1); saveRecords(); renderListView(); updateCalendarEvents(); }); };
     const formatTime = (milliseconds) => { if (milliseconds < 0) milliseconds = 0; const totalSeconds = Math.floor(milliseconds / 1000); const hours = Math.floor(totalSeconds / 3600); const minutes = Math.floor((totalSeconds % 3600) / 60); const seconds = totalSeconds % 60; return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; };
     
+    // ★★★ 追加：2つの色を混ぜ合わせる関数 ★★★
+    // color1が元の色, color2が混ぜる色(白), ratioが元の色の割合(0.3 = 30%)
+    const blendColors = (color1, color2, ratio) => {
+        const r1 = parseInt(color1.slice(1, 3), 16);
+        const g1 = parseInt(color1.slice(3, 5), 16);
+        const b1 = parseInt(color1.slice(5, 7), 16);
+
+        const r2 = parseInt(color2.slice(1, 3), 16);
+        const g2 = parseInt(color2.slice(3, 5), 16);
+        const b2 = parseInt(color2.slice(5, 7), 16);
+
+        const r = Math.round(r1 * ratio + r2 * (1 - ratio));
+        const g = Math.round(g1 * ratio + g2 * (1 - ratio));
+        const b = Math.round(b1 * ratio + b2 * (1 - ratio));
+
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    };
+
     // イベントリスナー設定
     modalCloseBtn.addEventListener('click', closeModal);
     eventChoiceModal.addEventListener('click', (e) => { if (e.target === eventChoiceModal) { closeModal(); } });
