@@ -124,7 +124,7 @@ body.calendar-mode #calendar {
 
 /* ヘッダーの全ボタンに対する共通スタイル */
 .fc .fc-button-primary {
-    padding: .3em .55em;
+    padding: .3em .3em;
     font-size: 0.9em;
     background-color: white;
     color: #007bff;
@@ -156,3 +156,32 @@ body.calendar-mode #calendar {
     border-color: navy;
     color: white;
 }
+
+/* --- style.cssの末尾に、このブロックを追記 --- */
+
+/* ★★★ 印刷プレビュー用のスタイル ★★★ */
+
+/* 通常表示の時は、印刷用コンテナは完全に非表示 */
+#print-container {
+    display: none;
+}
+
+/* 印刷時（PDF化時）のスタイル */
+@media print {
+    /* メインのアプリ画面やモーダルはすべて非表示にする */
+    body > *:not(#print-container) {
+        display: none !important;
+    }
+    /* 印刷用コンテナだけを表示する */
+    #print-container {
+        display: block !important;
+    }
+    /* 印刷時にページの余白をリセット */
+    @page {
+        margin: 1cm;
+    }
+    body {
+        margin: 0;
+    }
+}
+
