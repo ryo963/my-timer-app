@@ -137,48 +137,41 @@ document.addEventListener('DOMContentLoaded', function() {
                         exportPdfBtn: {
                             text: 'PDF出力',
                             click: () => {
-                                // 1. 印刷用のHTMLを生成するロジック
+                                showToast('PDFを生成中です...');
+
+                                // 1. 印刷用のスタイルとHTMLの骨組みを作成
                                 let printHtml = `
-                                    <html>
-                                    <head>
-                                        <title>印刷用カレンダー - ${calendar.view.title}</title>
-                                        <style>
-                                            body { font-family: sans-serif; }
-                                            .print-table { width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed; }
-                                            .print-table th, .print-table td { border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; text-align: center; vertical-align: top; position: relative; }
-                                            .print-table th { background-color: #f7f7f7; height: 40px; padding-top: 10px; border-bottom: 3px solid black; }
-                                            .print-table td { height: 30px; padding: 0; }
-                                            .hour-col { width: 45px; font-size: 9pt; vertical-align: top; text-align: right; padding-top: -2px; padding-right: 5px; border: none; }
-                                            .day-cell { position: relative; }
-                                            .hour-slot { height: 100%; box-sizing: border-box; }
-                                            .line-odd { border-bottom: 2px dotted grey; }
-                                            .line-even { border-bottom: 2px solid black; }
-                                            .line-12multiple { border-bottom: 3px solid black; }
-                                            .event-block {
-                                                position: absolute;
-                                                width: calc(100% - 4px);
-                                                left: 2px;
-                                                color: white;
-                                                padding: 2px 4px;
-                                                border-radius: 4px;
-                                                font-size: 8pt;
-                                                font-weight: bold;
-                                                overflow: hidden;
-                                                box-sizing: border-box;
-                                                z-index: 10;
-                                                border: 1px solid rgba(0,0,0,0.3);
-                                                -webkit-print-color-adjust: exact;
-                                                print-color-adjust: exact;
-                                            }
-                                        </style>
-                                    </head>
-                                    <body>
+                                    <html><head><title>印刷用カレンダー</title>
+                                    <style>
+                                        body { font-family: sans-serif; }
+                                        .print-wrapper { position: relative; }
+                                        .print-table { width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed; }
+                                        .print-table th, .print-table td { border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; text-align: center; vertical-align: top; }
+                                        .print-table th { background-color: #f7f7f7; height: 40px; padding-top: 10px; border-bottom: 3px solid black; }
+                                        .print-table td { padding: 0; }
+                                        .hour-col { width: 45px; font-size: 9pt; vertical-align: top; text-align: right; padding-top: -2px; padding-right: 5px; border: none; }
+                                        .day-cell { position: relative; } /* イベントを配置する基準点 */
+                                        .hour-slot { height: 50px; box-sizing: border-box; } /* 1時間の高さを40pxに */
+                                        .line-odd { border-bottom: 1px dotted grey; }
+                                        .line-even { border-bottom: 1px solid black; }
+                                        .line-6multiple { border-bottom: 2px solid black; }
+                                        .event-block {
+                                            position: absolute;
+                                            width: calc(100% - 2px); /* セルの枠線分を考慮 */
+                                            left: 1px;
+                                            color: white; padding: 2px 4px; border-radius: 4px;
+                                            font-size: 8pt; font-weight: bold; overflow: hidden;
+                                            box-sizing: border-box; z-index: 10; border: 1px solid rgba(0,0,0,0.3);
+                                            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+                                        }
+                                    </style>
+                                    </head><body>
+                                    <div class="print-wrapper">
                                         <h2>${calendar.view.title}</h2>
                                         <table class="print-table">
-                                            <thead>
-                                                <tr>
-                                                    <th class="hour-col"></th>
+                                            <thead><tr><th class="hour-col"></th>
                                 `;
+
                                 const view = calendar.view;
                                 const weekStartDate = view.activeStart;
                                 const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
@@ -188,21 +181,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                     printHtml += `<th>${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]})</th>`;
                                 }
                                 printHtml += '</tr></thead><tbody>';
+
                                 for (let hour = 6; hour <= 23; hour++) {
                                     let lineClass = 'hour-slot ';
-                                    if (hour % 12 === 0) { lineClass += 'line-12multiple'; }
-                                    else if (hour % 4 === 0) { lineClass += 'line-even'; }
+                                    if (hour % 6 === 0) { lineClass += 'line-6multiple'; }
+                                    else if (hour % 2 === 0) { lineClass += 'line-even'; }
                                     else { lineClass += 'line-odd'; }
-                                    printHtml += `<tr><td class="hour-col">${hour}:00</td>`;
+                                    printHtml += `<tr><td class="hour-col" style="height:40px;">${hour}:00</td>`;
                                     for (let day = 0; day < 7; day++) {
                                         printHtml += `<td class="day-cell" id="print-cell-${day}-${hour}"><div class="${lineClass}"></div></td>`;
                                     }
                                     printHtml += `</tr>`;
                                 }
-                                printHtml += '</tbody></table></body></html>';
+                                printHtml += '</tbody></table></div></body></html>';
                                 
-                                // 2. 新しいタブを開き、HTMLを書き込む
+                                // 2. 新しいタブを開き、まず骨組みだけを書き込む
                                 const printWindow = window.open('', '_blank');
+                                printWindow.document.open();
                                 printWindow.document.write(printHtml);
                                 
                                 // 3. 新しいタブ内のテーブルに、イベントを配置
@@ -212,28 +207,27 @@ document.addEventListener('DOMContentLoaded', function() {
                                     if (eventStartDate >= weekStartDate && eventStartDate < view.activeEnd) {
                                         const dayOfWeek = eventStartDate.getDay();
                                         const startHour = eventStartDate.getHours();
+                                        
+                                        // 対応するセルを、新しいタブのDOMから正確に取得
                                         const cell = printWindow.document.querySelector(`#print-cell-${dayOfWeek}-${startHour}`);
                                         if (cell) {
                                             const eventDiv = printWindow.document.createElement('div');
                                             eventDiv.className = 'event-block';
                                             
-                                            // ★★★ ここからが今回の修正箇所 ★★★
-                                            // 記録の由来に応じて、色をブレンドするかどうかを判断
-                                            const displayColor = record.source === 'palette' 
-                                                ? blendColors(record.color, '#FFFFFF', 0.7) // パレットからの予定は色を70%に薄める
-                                                : record.color; // 計測からの予定はそのままの色
-                                            
+                                            const displayColor = record.source === 'palette' ? blendColors(record.color, '#FFFFFF', 0.7) : record.color;
                                             eventDiv.style.backgroundColor = displayColor;
-                                            // ★★★ ここまで ★★★
-
-                                            const PIXELS_PER_HOUR = 30;
+                                            
+                                            const PIXELS_PER_HOUR = 50;
                                             const startMinute = eventStartDate.getMinutes();
                                             const durationMinutes = record.duration / 1000 / 60;
+                                            
                                             eventDiv.style.top = `${(startMinute / 60) * PIXELS_PER_HOUR}px`;
-                                            eventDiv.style.height = `${(durationMinutes / 60) * PIXELS_PER_HOUR}px`;
+                                            eventDiv.style.height = `${(durationMinutes / 60) * PIXELS_PER_HOUR - 2}px`; // 枠線分を引く
+
                                             const startTimeStr = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
                                             const endTimeStr = `${String(new Date(record.createdAt).getHours()).padStart(2, '0')}:${String(new Date(record.createdAt).getMinutes()).padStart(2, '0')}`;
                                             eventDiv.innerHTML = `<strong>${startTimeStr}-${endTimeStr}</strong><br>${record.task}`;
+                                            
                                             cell.appendChild(eventDiv);
                                         }
                                     }
