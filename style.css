@@ -185,3 +185,14 @@ body.calendar-mode #calendar {
     }
 }
 
+/* ★★★ リサイズ中の予定ブロックのスタイル ★★★ */
+.fc-event.is-resizing {
+    /* 枠線を太く、少し薄い青色にする */
+    border: 2px solid #69a9ff !important;
+    
+    /* 青い光彩（グロー効果）を追加する */
+    box-shadow: 0 0 8px 3px rgba(0, 123, 255, 0.4);
+
+    /* 他のイベントより手前に表示させる */
+    z-index: 20 !important;
+}
