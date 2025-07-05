@@ -250,17 +250,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
             allDaySlot: false, events: convertRecordsToEvents(), height: '100%', editable: true, droppable: true,
             stickyHeaderDates: true,
-            // イベントの長さ変更を開始した瞬間の処理
-            eventResizeStart: function(info) {
-                // 操作中のイベント要素に、特別なクラスを追加する
-                info.el.classList.add('is-resizing');
-            },
-
-            // イベントの長さ変更が終了した瞬間の処理
-            eventResizeEnd: function(info) {
-                // 操作が終わったら、クラスを削除して元の見た目に戻す
-                info.el.classList.remove('is-resizing');
-            },
             dateClick: function(info) {
                 modalEventList.innerHTML = '';
                 eventTypes.forEach(eventType => {
