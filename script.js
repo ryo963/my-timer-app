@@ -250,6 +250,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
             allDaySlot: false, events: convertRecordsToEvents(), height: '100%', editable: true, droppable: true,
             stickyHeaderDates: true,
+            // イベントのドラッグを開始した瞬間に振動させる
+            eventDragStart: function(info) {
+                if (navigator.vibrate) {
+                    navigator.vibrate(50); // 50ミリ秒の短い振動
+                }
+            },
+
+            // イベントの長さ変更を開始した瞬間に振動させる
+            eventResizeStart: function(info) {
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            },
             dateClick: function(info) {
                 modalEventList.innerHTML = '';
                 eventTypes.forEach(eventType => {
