@@ -90,7 +90,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const deleteButton = document.createElement('button');
             deleteButton.textContent = '削除';
             deleteButton.className = 'delete-button';
-            deleteButton.addEventListener('click', () => { showConfirm(`この記録を本当に削除しますか？\n「${record.task}」`, () => { deleteRecord(originalIndex); }); });
+             // ★★★ ここからが今回の修正箇所 ★★★
+                    deleteButton.addEventListener('click', () => {
+                        // 1. まず確認ダイアログを表示
+                        showConfirm(`この記録を本当に削除しますか？\n「${record.task}」`, () => {
+                            // 2. OKが押されたら、その記録のIDを使って削除関数を呼び出す
+                            deleteRecord(record.createdAt);
+                        });
+                    });
             li.appendChild(textSpan);
             li.appendChild(deleteButton);
             recordList.appendChild(li);
@@ -169,8 +176,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     svgContent += `<line x1="${hour_col_w}" y1="${header_h}" x2="${svg_w}" y2="${header_h}" stroke="black" stroke-width="2"></line>`;
 
                                     // 2. 時間列と罫線の描画
-                                    for (let hour = 6; hour <= 23; hour++) {
-                                        const y = header_h + (hour - 6) * hour_h;
+                                    for (let hour = 0; hour <= 23; hour++) {
+                                        const y = header_h + (hour) * hour_h;
                                         svgContent += `<text x="${hour_col_w - 5}" y="${y + 14}" font-family="sans-serif" font-size="12" text-anchor="end">${hour}:00</text>`;
                                         
                                         let stroke_w = '1'; let stroke_color = '#e0e0e0'; let stroke_dash = '3, 3';
@@ -185,15 +192,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                     allRecords.forEach(record => {
                                         const eventStartDate = new Date(record.createdAt - record.duration);
                                         if (eventStartDate >= weekStartDate && eventStartDate < view.activeEnd) {
-                                            const dayOfWeek = eventStartDate.getDay();
+                                            // タイムゾーンのずれを考慮し、曜日を正しく計算する
+                                            const dayOfWeek = (eventStartDate.getDay() + 6) % 7; // 月曜=0, 日曜=6 に変換
                                             const startHour = eventStartDate.getHours();
-                                            if (startHour < 6) return;
+                                            //if (startHour < 6) return;
 
                                             const startMinute = eventStartDate.getMinutes();
                                             const durationMinutes = record.duration / 1000 / 60;
                                             
                                             const x = hour_col_w + (dayOfWeek * day_col_w);
-                                            const y = header_h + ((startHour - 6) * hour_h) + ((startMinute / 60) * hour_h);
+                                            const y = header_h + ((startHour ) * hour_h) + ((startMinute / 60) * hour_h);
                                             const h = (durationMinutes / 60) * hour_h;
                                             const w = day_col_w;
 
@@ -212,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     });
 
                                     // 4. SVG全体を組み立てて、PDFに追加
-                                    const finalSvg = `<svg width="${svg_w}" height="${header_h + (18 * hour_h)}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+                                    const finalSvg = `<svg width="${svg_w}" height="${header_h + (24 * hour_h)}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
                                     const svgBlob = new Blob([finalSvg], {type: 'image/svg+xml;charset=utf-8'});
                                     const url = URL.createObjectURL(svgBlob);
                                     
@@ -299,7 +307,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateCalendarEvents = () => { if (calendar) { const events = convertRecordsToEvents(); calendar.getEventSources().forEach(source => source.remove()); calendar.addEventSource(events); } };
     const saveRecords = () => { try { localStorage.setItem('myTimerRecords', JSON.stringify(records)); showToast('記録を保存しました'); /*★通知を呼び出し*/} catch (e) { console.error("記録の保存に失敗しました:", e); } };
     const loadRecords = () => { try { const savedRecords = localStorage.getItem('myTimerRecords'); if (savedRecords) { records = JSON.parse(savedRecords); } } catch (e) { console.error("記録の読み込みに失敗しました:", e); records = []; } renderListView(); if (calendar) { updateCalendarEvents(); } };
-    const deleteRecord = (indexToDelete) => { showConfirm(`この記録を本当に削除しますか？\n「${records[indexToDelete].task}」`, () => { records.splice(indexToDelete, 1); saveRecords(); renderListView(); updateCalendarEvents(); }); };
+    const deleteRecord = (idToDelete) => {
+                // 記録のIDを元に、配列から該当の要素を削除する
+                records = records.filter(record => record.createdAt !== idToDelete);
+                
+                // 変更を保存し、表示を更新する
+                saveRecords();
+                renderListView();
+                updateCalendarEvents();
+            };
     const formatTime = (milliseconds) => { if (milliseconds < 0) milliseconds = 0; const totalSeconds = Math.floor(milliseconds / 1000); const hours = Math.floor(totalSeconds / 3600); const minutes = Math.floor((totalSeconds % 3600) / 60); const seconds = totalSeconds % 60; return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; };
     
     // ★★★ 追加：2つの色を混ぜ合わせる関数 ★★★
